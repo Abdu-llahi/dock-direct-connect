@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +101,8 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       id: 5,
       origin: "Dallas, TX",
       destination: "Houston, TX",
+      pallets: 20,
+      weight: "40,000 lbs",
       rate: "$1,200",
       completedAt: "3 days ago",
       shipper: "Walmart Distribution"
