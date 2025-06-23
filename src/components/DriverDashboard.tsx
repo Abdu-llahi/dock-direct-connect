@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Truck, LogOut, MapPin, DollarSign, Clock, Filter } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Truck, LogOut, MapPin, DollarSign, Clock, Filter, MessageCircle, FileText, Camera, Star, Home } from "lucide-react";
+import ChatModal from "@/components/ChatModal";
+import DocumentModal from "@/components/DocumentModal";
+import RatingModal from "@/components/RatingModal";
 
 interface DriverDashboardProps {
   onLogout: () => void;
@@ -15,8 +18,14 @@ interface DriverDashboardProps {
 const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
   const [searchRadius, setSearchRadius] = useState("100");
   const [sortBy, setSortBy] = useState("distance");
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedLoadId, setSelectedLoadId] = useState("");
+  const [selectedShipper, setSelectedShipper] = useState("");
+  const [homeBaseMode, setHomeBaseMode] = useState(false);
 
-  // Mock data
+  // Enhanced mock data
   const availableLoads = [
     {
       id: 1,
@@ -28,7 +37,11 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       rate: "$2,400",
       urgent: true,
       postedAt: "2 hours ago",
-      pickupTime: "Today 6:00 PM"
+      pickupTime: "Today 6:00 PM",
+      shipper: "Walmart Distribution",
+      shipperRating: 4.8,
+      towardHome: true,
+      stackable: false
     },
     {
       id: 2,
@@ -40,7 +53,12 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       rate: "$1,950",
       urgent: false,
       postedAt: "4 hours ago",
-      pickupTime: "Tomorrow 8:00 AM"
+      pickupTime: "Tomorrow 8:00 AM",
+      shipper: "Target Distribution",
+      shipperRating: 4.6,
+      towardHome: false,
+      stackable: true,
+      stackInfo: "Possible 2nd pickup in Fort Wayne"
     },
     {
       id: 3,
@@ -52,7 +70,11 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       rate: "$2,100",
       urgent: false,
       postedAt: "6 hours ago",
-      pickupTime: "Tomorrow 2:00 PM"
+      pickupTime: "Tomorrow 2:00 PM",
+      shipper: "Amazon Fulfillment",
+      shipperRating: 4.9,
+      towardHome: true,
+      stackable: false
     }
   ];
 
@@ -63,7 +85,14 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       destination: "Miami, FL",
       status: "in_transit",
       rate: "$1,800",
-      deliveryTime: "Tomorrow 10:00 AM"
+      deliveryTime: "Tomorrow 10:00 AM",
+      shipper: "Home Depot Distribution",
+      shipperRating: 4.7,
+      paymentStatus: "escrow_held",
+      documents: {
+        pickup_photos: 2,
+        pod_required: true
+      }
     }
   ];
 
@@ -78,9 +107,29 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
     }
   ];
 
+  const filteredLoads = homeBaseMode 
+    ? availableLoads.filter(load => load.towardHome)
+    : availableLoads;
+
   const handleAcceptLoad = (loadId: number) => {
     console.log('Accepting load:', loadId);
-    // In a real app, this would make an API call
+  };
+
+  const handleOpenChat = (loadId: number, shipper: string) => {
+    setSelectedLoadId(loadId.toString());
+    setSelectedShipper(shipper);
+    setShowChatModal(true);
+  };
+
+  const handleOpenDocuments = (loadId: number) => {
+    setSelectedLoadId(loadId.toString());
+    setShowDocumentModal(true);
+  };
+
+  const handleOpenRating = (loadId: number, shipper: string) => {
+    setSelectedLoadId(loadId.toString());
+    setSelectedShipper(shipper);
+    setShowRatingModal(true);
   };
 
   return (
@@ -95,6 +144,15 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
               <Badge variant="secondary">Driver</Badge>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Home Base Toggle */}
+              <div className="flex items-center space-x-2 p-2 border rounded-lg">
+                <Home className={`h-4 w-4 ${homeBaseMode ? 'text-dock-orange' : 'text-gray-400'}`} />
+                <span className="text-sm font-medium">Home Base</span>
+                <Switch 
+                  checked={homeBaseMode}
+                  onCheckedChange={setHomeBaseMode}
+                />
+              </div>
               <div className="text-sm text-gray-600">
                 Current Location: <span className="font-semibold">Chicago, IL</span>
               </div>
@@ -108,6 +166,19 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Home Base Alert */}
+        {homeBaseMode && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <Home className="h-5 w-5 text-dock-orange" />
+              <span className="font-medium text-orange-800">Home Base Mode Active</span>
+            </div>
+            <p className="text-sm text-orange-600 mt-1">
+              Showing loads that route toward your home base to minimize empty miles.
+            </p>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -116,8 +187,10 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
               <MapPin className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">23</div>
-              <p className="text-xs text-muted-foreground">Within 100 miles</p>
+              <div className="text-2xl font-bold">{filteredLoads.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {homeBaseMode ? 'Toward home' : 'Within 100 miles'}
+              </p>
             </CardContent>
           </Card>
 
@@ -212,12 +285,12 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
 
             {/* Available Loads */}
             <div className="grid gap-4">
-              {availableLoads.map((load) => (
+              {filteredLoads.map((load) => (
                 <Card key={load.id} className={load.urgent ? "border-red-200 bg-red-50" : ""}>
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div className="space-y-1">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap">
                           <CardTitle className="text-lg">
                             {load.origin} → {load.destination}
                           </CardTitle>
@@ -226,10 +299,31 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
                               URGENT
                             </Badge>
                           )}
+                          {load.towardHome && (
+                            <Badge variant="outline" className="text-dock-orange border-dock-orange">
+                              <Home className="h-3 w-3 mr-1" />
+                              Home Route
+                            </Badge>
+                          )}
+                          {load.stackable && (
+                            <Badge variant="outline" className="text-green-600 border-green-600">
+                              Stackable
+                            </Badge>
+                          )}
                         </div>
                         <CardDescription>
                           {load.distance} • Posted {load.postedAt}
                         </CardDescription>
+                        <div className="flex items-center space-x-2 text-sm">
+                          <span>Shipper: <strong>{load.shipper}</strong></span>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span>{load.shipperRating}</span>
+                          </div>
+                        </div>
+                        {load.stackInfo && (
+                          <p className="text-sm text-green-600 font-medium">{load.stackInfo}</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-600">{load.rate}</div>
@@ -244,6 +338,14 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
                         <div><strong>Load:</strong> {load.pallets} pallets, {load.weight}</div>
                       </div>
                       <div className="flex justify-end items-center space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleOpenChat(load.id, load.shipper)}
+                        >
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          Chat
+                        </Button>
                         <Button variant="outline" size="sm">
                           View Details
                         </Button>
@@ -275,21 +377,49 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
                         <CardDescription>
                           Delivery: {load.deliveryTime}
                         </CardDescription>
+                        <div className="flex items-center space-x-2 text-sm">
+                          <span>Shipper: <strong>{load.shipper}</strong></span>
+                          <div className="flex items-center space-x-1">
+                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                            <span>{load.shipperRating}</span>
+                          </div>
+                        </div>
                       </div>
-                      <Badge className="bg-blue-500 text-white">In Transit</Badge>
+                      <div className="space-y-2">
+                        <Badge className="bg-blue-500 text-white">In Transit</Badge>
+                        <Badge variant="outline" className="block text-center">
+                          Payment: {load.paymentStatus === 'escrow_held' ? 'Escrowed' : 'Pending'}
+                        </Badge>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-4">
                       <div className="text-lg font-semibold text-green-600">{load.rate}</div>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          Upload POD
-                        </Button>
-                        <Button size="sm" className="bg-dock-blue hover:bg-blue-800">
-                          Mark Complete
-                        </Button>
+                      <div className="text-sm text-gray-600">
+                        {load.documents.pickup_photos} photos uploaded • POD required
                       </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenChat(load.id, load.shipper)}
+                      >
+                        <MessageCircle className="h-3 w-3 mr-1" />
+                        Chat
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenDocuments(load.id)}
+                      >
+                        <Camera className="h-3 w-3 mr-1" />
+                        Upload POD
+                      </Button>
+                      <Button size="sm" className="bg-dock-blue hover:bg-blue-800">
+                        Mark Complete
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -328,6 +458,36 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      {showChatModal && (
+        <ChatModal
+          isOpen={showChatModal}
+          onClose={() => setShowChatModal(false)}
+          userType="driver"
+          conversationWith={selectedShipper}
+          loadId={selectedLoadId}
+        />
+      )}
+
+      {showDocumentModal && (
+        <DocumentModal
+          isOpen={showDocumentModal}
+          onClose={() => setShowDocumentModal(false)}
+          userType="driver"
+          loadId={selectedLoadId}
+        />
+      )}
+
+      {showRatingModal && (
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => setShowRatingModal(false)}
+          userType="driver"
+          ratingFor={selectedShipper}
+          loadId={selectedLoadId}
+        />
+      )}
     </div>
   );
 };
