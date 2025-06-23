@@ -1,15 +1,16 @@
+
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Truck, LogOut, MapPin, DollarSign, Clock, Filter, MessageCircle, FileText, Camera, Star, Home } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Camera, Home } from "lucide-react";
 import ChatModal from "@/components/ChatModal";
 import DocumentModal from "@/components/DocumentModal";
 import RatingModal from "@/components/RatingModal";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import StatsCards from "@/components/dashboard/StatsCards";
+import LoadList from "@/components/dashboard/LoadList";
+import LoadFilters from "@/components/dashboard/LoadFilters";
 
 interface DriverDashboardProps {
   onLogout: () => void;
@@ -134,36 +135,13 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Truck className="h-8 w-8 text-dock-orange" />
-              <span className="text-2xl font-bold text-dock-orange">DockDirect</span>
-              <Badge variant="secondary">Driver</Badge>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Home Base Toggle */}
-              <div className="flex items-center space-x-2 p-2 border rounded-lg">
-                <Home className={`h-4 w-4 ${homeBaseMode ? 'text-dock-orange' : 'text-gray-400'}`} />
-                <span className="text-sm font-medium">Home Base</span>
-                <Switch 
-                  checked={homeBaseMode}
-                  onCheckedChange={setHomeBaseMode}
-                />
-              </div>
-              <div className="text-sm text-gray-600">
-                Current Location: <span className="font-semibold">Chicago, IL</span>
-              </div>
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader
+        userType="driver"
+        onLogout={onLogout}
+        homeBaseMode={homeBaseMode}
+        onHomeBaseToggle={setHomeBaseMode}
+        currentLocation="Chicago, IL"
+      />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Home Base Alert */}
@@ -179,54 +157,7 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Available Loads</CardTitle>
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{filteredLoads.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {homeBaseMode ? 'Toward home' : 'Within 100 miles'}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">This Month</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">$18,400</div>
-              <p className="text-xs text-muted-foreground">+8% from last month</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Loads Complete</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">14</div>
-              <p className="text-xs text-muted-foreground">This month</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Rating</CardTitle>
-              <div className="text-yellow-500">⭐</div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">4.9</div>
-              <p className="text-xs text-muted-foreground">Based on 47 reviews</p>
-            </CardContent>
-          </Card>
-        </div>
+        <StatsCards userType="driver" />
 
         {/* Main Content */}
         <Tabs defaultValue="available" className="space-y-4">
@@ -237,224 +168,76 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
           </TabsList>
 
           <TabsContent value="available">
-            {/* Filters */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Filter className="h-5 w-5" />
-                  <span>Search Filters</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Search Radius</label>
-                    <Select value={searchRadius} onValueChange={setSearchRadius}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="50">50 miles</SelectItem>
-                        <SelectItem value="100">100 miles</SelectItem>
-                        <SelectItem value="200">200 miles</SelectItem>
-                        <SelectItem value="500">500 miles</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Sort By</label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="distance">Distance</SelectItem>
-                        <SelectItem value="rate">Rate (High to Low)</SelectItem>
-                        <SelectItem value="urgent">Urgent First</SelectItem>
-                        <SelectItem value="recent">Most Recent</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Min Rate</label>
-                    <Input placeholder="$0" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Available Loads */}
-            <div className="grid gap-4">
-              {filteredLoads.map((load) => (
-                <Card key={load.id} className={load.urgent ? "border-red-200 bg-red-50" : ""}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <div className="flex items-center space-x-2 flex-wrap">
-                          <CardTitle className="text-lg">
-                            {load.origin} → {load.destination}
-                          </CardTitle>
-                          {load.urgent && (
-                            <Badge className="bg-red-500 text-white urgent-pulse">
-                              URGENT
-                            </Badge>
-                          )}
-                          {load.towardHome && (
-                            <Badge variant="outline" className="text-dock-orange border-dock-orange">
-                              <Home className="h-3 w-3 mr-1" />
-                              Home Route
-                            </Badge>
-                          )}
-                          {load.stackable && (
-                            <Badge variant="outline" className="text-green-600 border-green-600">
-                              Stackable
-                            </Badge>
-                          )}
-                        </div>
-                        <CardDescription>
-                          {load.distance} • Posted {load.postedAt}
-                        </CardDescription>
-                        <div className="flex items-center space-x-2 text-sm">
-                          <span>Shipper: <strong>{load.shipper}</strong></span>
-                          <div className="flex items-center space-x-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span>{load.shipperRating}</span>
-                          </div>
-                        </div>
-                        {load.stackInfo && (
-                          <p className="text-sm text-green-600 font-medium">{load.stackInfo}</p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold text-green-600">{load.rate}</div>
-                        <div className="text-sm text-gray-500">Total pay</div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="space-y-2 text-sm">
-                        <div><strong>Pickup:</strong> {load.pickupTime}</div>
-                        <div><strong>Load:</strong> {load.pallets} pallets, {load.weight}</div>
-                      </div>
-                      <div className="flex justify-end items-center space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleOpenChat(load.id, load.shipper)}
-                        >
-                          <MessageCircle className="h-3 w-3 mr-1" />
-                          Chat
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          View Details
-                        </Button>
-                        <Button 
-                          onClick={() => handleAcceptLoad(load.id)}
-                          className="bg-dock-orange hover:bg-orange-600"
-                          size="sm"
-                        >
-                          Accept Load
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <LoadFilters
+              searchRadius={searchRadius}
+              setSearchRadius={setSearchRadius}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+            />
+            <LoadList
+              loads={filteredLoads}
+              userType="driver"
+              onOpenChat={handleOpenChat}
+              onAcceptLoad={handleAcceptLoad}
+            />
           </TabsContent>
 
           <TabsContent value="myloads">
             <div className="grid gap-4">
               {myLoads.map((load) => (
-                <Card key={load.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">
-                          {load.origin} → {load.destination}
-                        </CardTitle>
-                        <CardDescription>
-                          Delivery: {load.deliveryTime}
-                        </CardDescription>
-                        <div className="flex items-center space-x-2 text-sm">
-                          <span>Shipper: <strong>{load.shipper}</strong></span>
-                          <div className="flex items-center space-x-1">
-                            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                            <span>{load.shipperRating}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Badge className="bg-blue-500 text-white">In Transit</Badge>
-                        <Badge variant="outline" className="block text-center">
-                          Payment: {load.paymentStatus === 'escrow_held' ? 'Escrowed' : 'Pending'}
-                        </Badge>
-                      </div>
+                <div key={load.id} className="p-4 border rounded-lg bg-white">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold">
+                        {load.origin} → {load.destination}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        Delivery: {load.deliveryTime}
+                      </p>
+                      <p className="text-sm">
+                        Shipper: <strong>{load.shipper}</strong>
+                      </p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center mb-4">
-                      <div className="text-lg font-semibold text-green-600">{load.rate}</div>
-                      <div className="text-sm text-gray-600">
-                        {load.documents.pickup_photos} photos uploaded • POD required
-                      </div>
+                    <div className="space-y-2">
+                      <Badge className="bg-blue-500 text-white">In Transit</Badge>
+                      <Badge variant="outline" className="block text-center">
+                        Payment: {load.paymentStatus === 'escrow_held' ? 'Escrowed' : 'Pending'}
+                      </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleOpenChat(load.id, load.shipper)}
-                      >
-                        <MessageCircle className="h-3 w-3 mr-1" />
-                        Chat
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleOpenDocuments(load.id)}
-                      >
-                        <Camera className="h-3 w-3 mr-1" />
-                        Upload POD
-                      </Button>
-                      <Button size="sm" className="bg-dock-blue hover:bg-blue-800">
-                        Mark Complete
-                      </Button>
+                  </div>
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="text-lg font-semibold text-green-600">{load.rate}</div>
+                    <div className="text-sm text-gray-600">
+                      {load.documents.pickup_photos} photos uploaded • POD required
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleOpenChat(load.id, load.shipper)}
+                    >
+                      Chat
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleOpenDocuments(load.id)}
+                    >
+                      <Camera className="h-3 w-3 mr-1" />
+                      Upload POD
+                    </Button>
+                    <Button size="sm" className="bg-dock-blue hover:bg-blue-800">
+                      Mark Complete
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           </TabsContent>
 
           <TabsContent value="completed">
-            <div className="grid gap-4">
-              {completedLoads.map((load) => (
-                <Card key={load.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div className="space-y-1">
-                        <CardTitle className="text-lg">
-                          {load.origin} → {load.destination}
-                        </CardTitle>
-                        <CardDescription>
-                          Completed {load.completedAt} • Shipper: {load.shipper}
-                        </CardDescription>
-                      </div>
-                      <Badge className="bg-green-500 text-white">Completed</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div className="text-lg font-semibold text-green-600">{load.rate}</div>
-                      <Button variant="outline" size="sm">
-                        View Receipt
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <LoadList loads={completedLoads} userType="driver" />
           </TabsContent>
         </Tabs>
       </div>
