@@ -10,6 +10,7 @@ import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatsCards from "@/components/dashboard/StatsCards";
 import LoadList from "@/components/dashboard/LoadList";
 import LoadFilters from "@/components/dashboard/LoadFilters";
+import PricingModal from "@/components/monetization/PricingModal";
 
 interface DriverDashboardProps {
   onLogout: () => void;
@@ -24,6 +25,8 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
   const [selectedLoadId, setSelectedLoadId] = useState("");
   const [selectedShipper, setSelectedShipper] = useState("");
   const [homeBaseMode, setHomeBaseMode] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<'free' | 'premium'>('free');
 
   // Enhanced mock data
   const availableLoads = [
@@ -134,6 +137,10 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
     setShowRatingModal(true);
   };
 
+  const handleInstantPayment = (loadId: number) => {
+    console.log(`Requesting instant payment for load ${loadId} - $5 fee`);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
@@ -145,6 +152,26 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Plan Status Alert */}
+        {currentPlan === 'free' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-orange-800">Upgrade to Premium</h3>
+                <p className="text-sm text-orange-600">
+                  Get priority alerts, instant payments, and home base optimization
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowPricingModal(true)}
+                className="bg-dock-orange hover:bg-orange-600"
+              >
+                Upgrade Now
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Home Base Alert */}
         {homeBaseMode && (
           <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
@@ -208,8 +235,24 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
                   </div>
                   <div className="flex justify-between items-center mb-4">
                     <div className="text-lg font-semibold text-green-600">{load.rate}</div>
-                    <div className="text-sm text-gray-600">
-                      {load.documents.pickup_photos} photos uploaded • POD required
+                    <div className="space-y-1">
+                      <div className="text-sm text-gray-600">
+                        {load.documents.pickup_photos} photos uploaded • POD required
+                      </div>
+                      {load.paymentStatus === 'escrow_held' && (
+                        <div className="flex items-center space-x-2">
+                          <Badge className="bg-blue-100 text-blue-800">Payment Escrowed</Badge>
+                          {currentPlan === 'premium' && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleInstantPayment(load.id)}
+                            >
+                              Instant Payment ($5)
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -270,6 +313,15 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
           userType="driver"
           ratingFor={selectedShipper}
           loadId={selectedLoadId}
+        />
+      )}
+
+      {showPricingModal && (
+        <PricingModal
+          isOpen={showPricingModal}
+          onClose={() => setShowPricingModal(false)}
+          userType="driver"
+          currentPlan={currentPlan}
         />
       )}
     </div>

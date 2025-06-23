@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import RatingModal from "@/components/RatingModal";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatsCards from "@/components/dashboard/StatsCards";
 import LoadList from "@/components/dashboard/LoadList";
+import PricingModal from "@/components/monetization/PricingModal";
 
 interface ShipperDashboardProps {
   onLogout: () => void;
@@ -22,6 +22,8 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState<'free' | 'premium'>('free');
   const [selectedLoadId, setSelectedLoadId] = useState("");
   const [selectedDriver, setSelectedDriver] = useState("");
   const [emergencyMode, setEmergencyMode] = useState(false);
@@ -107,6 +109,12 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
     }
   };
 
+  const handlePlatformFeeCalculation = (loadRate: string) => {
+    const rate = parseFloat(loadRate.replace('$', '').replace(',', ''));
+    const feePercentage = currentPlan === 'premium' ? 0.025 : 0.03;
+    return (rate * feePercentage).toFixed(2);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
@@ -118,6 +126,26 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
       />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Plan Status Alert */}
+        {currentPlan === 'free' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-blue-800">Upgrade to Premium</h3>
+                <p className="text-sm text-blue-600">
+                  Get priority listing, reduced fees (2.5% vs 3%), and emergency push notifications
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowPricingModal(true)}
+                className="bg-dock-blue hover:bg-blue-800"
+              >
+                Upgrade Now
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Emergency Mode Alert */}
         {emergencyMode && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -132,6 +160,83 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
         )}
 
         <StatsCards userType="shipper" />
+
+        {/* Enhanced Stats with Monetization */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">This Month's Fees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Platform fees ({currentPlan === 'premium' ? '2.5%' : '3%'})</span>
+                  <span className="font-medium">${currentPlan === 'premium' ? '615' : '738'}</span>
+                </div>
+                {currentPlan === 'premium' && (
+                  <div className="flex justify-between">
+                    <span className="text-sm">Premium subscription</span>
+                    <span className="font-medium">$29</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>${currentPlan === 'premium' ? '644' : '738'}</span>
+                </div>
+                {currentPlan === 'free' && (
+                  <p className="text-xs text-green-600">Save $123/month with Premium!</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Premium Features</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center">
+                  <div className={`h-2 w-2 rounded-full mr-2 ${currentPlan === 'premium' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  Emergency Push Notifications
+                </div>
+                <div className="flex items-center">
+                  <div className={`h-2 w-2 rounded-full mr-2 ${currentPlan === 'premium' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  Priority Load Listing
+                </div>
+                <div className="flex items-center">
+                  <div className={`h-2 w-2 rounded-full mr-2 ${currentPlan === 'premium' ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  Reduced Platform Fees
+                </div>
+                {currentPlan === 'free' && (
+                  <Button 
+                    size="sm" 
+                    className="w-full mt-2"
+                    onClick={() => setShowPricingModal(true)}
+                  >
+                    Upgrade
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Load Insurance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-sm">
+                <p>Protect your loads with optional insurance</p>
+                <p className="font-medium">2% additional fee per load</p>
+                <p className="text-xs text-gray-600">Covers damage, theft, and delays</p>
+                <Button size="sm" variant="outline" className="w-full mt-2">
+                  Learn More
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Main Content */}
         <Tabs defaultValue="active" className="space-y-4">
@@ -214,6 +319,15 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
           userType="shipper"
           ratingFor={selectedDriver}
           loadId={selectedLoadId}
+        />
+      )}
+
+      {showPricingModal && (
+        <PricingModal
+          isOpen={showPricingModal}
+          onClose={() => setShowPricingModal(false)}
+          userType="shipper"
+          currentPlan={currentPlan}
         />
       )}
     </div>

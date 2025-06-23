@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +9,11 @@ import DriverDashboard from "@/components/DriverDashboard";
 
 const Index = () => {
   const [showAuth, setShowAuth] = useState(false);
-  const [userType, setUserType] = useState<'shipper' | 'driver' | null>(null);
+  const [userType, setUserType] = useState<'shipper' | 'driver' | 'admin' | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'shipper' | 'driver' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<'shipper' | 'driver' | 'admin' | null>(null);
 
-  const handleRoleSelect = (role: 'shipper' | 'driver') => {
+  const handleRoleSelect = (role: 'shipper' | 'driver' | 'admin') => {
     setSelectedRole(role);
     setShowAuth(true);
   };
@@ -37,6 +36,15 @@ const Index = () => {
 
   if (isLoggedIn && userType === 'driver') {
     return <DriverDashboard onLogout={handleLogout} />;
+  }
+
+  if (isLoggedIn && userType === 'admin') {
+    const AdminDashboard = lazy(() => import('@/components/AdminDashboard'));
+    return (
+      <Suspense fallback={<div>Loading...</div>}>
+        <AdminDashboard onLogout={handleLogout} />
+      </Suspense>
+    );
   }
 
   return (
@@ -65,6 +73,13 @@ const Index = () => {
                 className="hover:bg-orange-50"
               >
                 Driver Login
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => handleRoleSelect('admin')}
+                className="hover:bg-gray-50 text-xs"
+              >
+                Admin
               </Button>
             </div>
           </div>
