@@ -2,7 +2,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Brain, CreditCard, Truck2, Bell } from 'lucide-react';
+import { Brain, CreditCard, Truck, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import AnimatedCard from '@/components/ui/animated-card';
@@ -35,7 +35,7 @@ const NextGenSection = () => {
       color: "text-dock-orange"
     },
     {
-      icon: Truck2,
+      icon: Truck,
       title: "Fleet Management",
       description: "Advanced tools for managing multiple drivers and loads with real-time analytics and reporting",
       color: "text-green-600"
