@@ -1,48 +1,52 @@
+
 import { useState, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Package, Clock, DollarSign, Users, Shield } from "lucide-react";
+import { Truck, Package, Clock, DollarSign, Users, Shield, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
-import AuthModal from "@/components/AuthModal";
 import ShipperDashboard from "@/components/ShipperDashboard";
 import DriverDashboard from "@/components/DriverDashboard";
 
 const AdminDashboard = lazy(() => import("@/components/AdminDashboard"));
 
 const Index = () => {
-  const [showAuth, setShowAuth] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<"shipper" | "driver" | "admin" | null>(null);
-  const [userType, setUserType] = useState<"shipper" | "driver" | "admin" | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
 
   const handleRoleSelect = (role: "shipper" | "driver" | "admin") => {
-    setSelectedRole(role);
-    setShowAuth(true);
+    navigate(`/auth`);
   };
 
-  const handleLogin = () => {
-    setUserType(selectedRole);
-    setIsLoggedIn(true);
-    setShowAuth(false);
+  const handleLogout = async () => {
+    await signOut();
   };
 
-  const handleLogout = () => {
-    setUserType(null);
-    setSelectedRole(null);
-    setIsLoggedIn(false);
-  };
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-pulse">
+            <Truck className="h-12 w-12 text-blue-700 mx-auto mb-4" />
+          </div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-  if (isLoggedIn) {
-    if (userType === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
-    if (userType === "driver") return <DriverDashboard onLogout={handleLogout} />;
-    if (userType === "admin") {
-      return (
-        <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
-          <AdminDashboard onLogout={handleLogout} />
-        </Suspense>
-      );
-    }
+  // Show appropriate dashboard if logged in
+  if (user?.role === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
+  if (user?.role === "driver") return <DriverDashboard onLogout={handleLogout} />;
+  if (user?.role === "admin") {
+    return (
+      <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
+        <AdminDashboard onLogout={handleLogout} />
+      </Suspense>
+    );
   }
 
   return (
@@ -58,15 +62,33 @@ const Index = () => {
               </span>
             </div>
             <div className="flex space-x-4">
-              <Button variant="ghost" onClick={() => handleRoleSelect("shipper")} className="hover:bg-blue-50">
-                Shipper Login
-              </Button>
-              <Button variant="ghost" onClick={() => handleRoleSelect("driver")} className="hover:bg-orange-50">
-                Driver Login
-              </Button>
-              <Button variant="ghost" onClick={() => handleRoleSelect("admin")} className="hover:bg-gray-50 text-xs">
-                Admin
-              </Button>
+              {user ? (
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Welcome, {user.name || user.email}
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    onClick={handleLogout}
+                    className="flex items-center gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Button variant="ghost" onClick={() => handleRoleSelect("shipper")} className="hover:bg-blue-50">
+                    Shipper Login
+                  </Button>
+                  <Button variant="ghost" onClick={() => handleRoleSelect("driver")} className="hover:bg-orange-50">
+                    Driver Login
+                  </Button>
+                  <Button variant="ghost" onClick={() => handleRoleSelect("admin")} className="hover:bg-gray-50 text-xs">
+                    Admin
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -192,16 +214,6 @@ const Index = () => {
           </CardHeader>
         </Card>
       </div>
-
-      {/* Auth Modal */}
-      {showAuth && selectedRole && selectedRole !== "admin" && (
-        <AuthModal
-          isOpen={showAuth}
-          onClose={() => setShowAuth(false)}
-          userType={selectedRole}
-          onLogin={handleLogin}
-        />
-      )}
     </div>
   );
 };
