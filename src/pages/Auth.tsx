@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,18 +10,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Truck, Package, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
+import Logo from '@/components/ui/logo';
 
-interface AuthProps {
-  defaultRole?: 'shipper' | 'driver' | 'admin';
-}
-
-const Auth = ({ defaultRole }: AuthProps) => {
+const Auth = () => {
+  const { role } = useParams();
   const { user, loading, signUp, signIn } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
-    role: defaultRole || 'shipper' as 'shipper' | 'driver' | 'admin'
+    phone: '',
+    userType: (role as 'shipper' | 'driver') || 'shipper' as 'shipper' | 'driver',
+    company: '',
+    license_number: '',
+    mc_dot_number: '',
+    ein_number: '',
+    business_address: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,7 +40,7 @@ const Auth = ({ defaultRole }: AuthProps) => {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-pulse">
-            <Truck className="h-12 w-12 text-blue-700 mx-auto mb-4" />
+            <Logo showText={false} className="mx-auto mb-4" />
           </div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -45,18 +50,34 @@ const Auth = ({ defaultRole }: AuthProps) => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.email || !formData.password || !formData.name || !formData.role) {
+    if (!formData.email || !formData.password || !formData.name || !formData.userType) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
-    await signUp(formData.email, formData.password, formData.name, formData.role);
+    
+    const additionalData: any = {
+      phone: formData.phone
+    };
+
+    if (formData.userType === 'shipper') {
+      additionalData.company = formData.company;
+      additionalData.ein_number = formData.ein_number;
+      additionalData.business_address = formData.business_address;
+    } else if (formData.userType === 'driver') {
+      additionalData.license_number = formData.license_number;
+      additionalData.mc_dot_number = formData.mc_dot_number;
+    }
+
+    await signUp(formData.email, formData.password, formData.name, formData.userType, additionalData);
     setIsSubmitting(false);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email || !formData.password) {
+      toast.error('Please enter your email and password');
       return;
     }
 
@@ -71,12 +92,7 @@ const Auth = ({ defaultRole }: AuthProps) => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center space-x-2">
-              <Truck className="h-8 w-8 text-blue-700" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-blue-700 to-orange-500 bg-clip-text text-transparent">
-                DockDirect
-              </span>
-            </Link>
+            <Logo />
             <Link to="/">
               <Button variant="ghost" className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
@@ -175,11 +191,21 @@ const Auth = ({ defaultRole }: AuthProps) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">I am a...</Label>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="(555) 123-4567"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="userType">I am a...</Label>
                     <Select 
-                      value={formData.role} 
-                      onValueChange={(value: 'shipper' | 'driver' | 'admin') => 
-                        setFormData(prev => ({ ...prev, role: value }))
+                      value={formData.userType} 
+                      onValueChange={(value: 'shipper' | 'driver') => 
+                        setFormData(prev => ({ ...prev, userType: value }))
                       }
                     >
                       <SelectTrigger>
@@ -201,6 +227,68 @@ const Auth = ({ defaultRole }: AuthProps) => {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Conditional fields based on user type */}
+                  {formData.userType === 'shipper' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="company">Company Name</Label>
+                        <Input
+                          id="company"
+                          type="text"
+                          placeholder="Your Company Name"
+                          value={formData.company}
+                          onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="business_address">Business Address</Label>
+                        <Input
+                          id="business_address"
+                          type="text"
+                          placeholder="123 Business St, City, State"
+                          value={formData.business_address}
+                          onChange={(e) => setFormData(prev => ({ ...prev, business_address: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="ein_number">EIN Number (Optional)</Label>
+                        <Input
+                          id="ein_number"
+                          type="text"
+                          placeholder="12-3456789"
+                          value={formData.ein_number}
+                          onChange={(e) => setFormData(prev => ({ ...prev, ein_number: e.target.value }))}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {formData.userType === 'driver' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="license_number">CDL License Number</Label>
+                        <Input
+                          id="license_number"
+                          type="text"
+                          placeholder="CDL123456789"
+                          value={formData.license_number}
+                          onChange={(e) => setFormData(prev => ({ ...prev, license_number: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mc_dot_number">MC/DOT Number (Optional)</Label>
+                        <Input
+                          id="mc_dot_number"
+                          type="text"
+                          placeholder="MC123456 / DOT123456"
+                          value={formData.mc_dot_number}
+                          onChange={(e) => setFormData(prev => ({ ...prev, mc_dot_number: e.target.value }))}
+                        />
+                      </div>
+                    </>
+                  )}
+
                   <Button 
                     type="submit" 
                     className="w-full" 

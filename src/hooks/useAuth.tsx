@@ -4,20 +4,20 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type UserRole = 'shipper' | 'driver' | 'admin';
+type UserType = 'shipper' | 'driver' | 'admin';
 
 interface AuthUser extends User {
-  role?: UserRole;
+  user_type?: UserType;
   name?: string;
   verification_status?: string;
-  status?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error?: any }>;
+  signUp: (email: string, password: string, name: string, userType: UserType, additionalData?: any) => Promise<{ error?: any }>;
   signIn: (email: string, password: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: any) => Promise<{ error?: any }>;
@@ -38,41 +38,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile data
+          // Defer Supabase calls to avoid deadlock
           setTimeout(async () => {
             try {
               const { data: userData, error } = await supabase
                 .from('users')
-                .select('role, name, verification_status, status')
+                .select('user_type, name, verification_status, phone')
                 .eq('id', session.user.id)
                 .single();
 
               if (userData && !error) {
                 setUser({
                   ...session.user,
-                  role: userData.role as UserRole,
+                  user_type: userData.user_type as UserType,
                   name: userData.name,
                   verification_status: userData.verification_status,
-                  status: userData.status
+                  phone: userData.phone
                 } as AuthUser);
               } else {
-                setUser({
-                  ...session.user,
-                  role: undefined,
-                  name: undefined,
-                  verification_status: undefined,
-                  status: undefined
-                } as AuthUser);
+                console.log('User data not found in users table, using auth data only');
+                setUser(session.user as AuthUser);
               }
             } catch (err) {
               console.error('Error fetching user data:', err);
-              setUser({
-                ...session.user,
-                role: undefined,
-                name: undefined,
-                verification_status: undefined,
-                status: undefined
-              } as AuthUser);
+              setUser(session.user as AuthUser);
             }
           }, 0);
         } else {
@@ -86,13 +75,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        setUser({
-          ...session.user,
-          role: undefined,
-          name: undefined,
-          verification_status: undefined,
-          status: undefined
-        } as AuthUser);
+        setUser(session.user as AuthUser);
       }
       setLoading(false);
     });
@@ -100,8 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name: string, role: UserRole) => {
+  const signUp = async (email: string, password: string, name: string, userType: UserType, additionalData: any = {}) => {
     try {
+      console.log('Starting signup process for:', email, userType);
+      
       const redirectUrl = `${window.location.origin}/`;
       
       const { data, error } = await supabase.auth.signUp({
@@ -111,32 +96,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           emailRedirectTo: redirectUrl,
           data: {
             name,
-            role
+            user_type: userType,
+            ...additionalData
           }
         }
       });
 
       if (error) {
+        console.error('Supabase auth signup error:', error);
         toast.error(error.message);
         return { error };
       }
 
       if (data.user) {
-        // Create user record
+        console.log('Auth user created, now creating user record');
+        
+        // Create user record in our users table
         const { error: userError } = await supabase
           .from('users')
           .insert([
             {
               id: data.user.id,
-              name,
-              role,
-              status: 'pending',
+              email: email,
+              name: name,
+              user_type: userType,
+              phone: additionalData.phone || null,
               verification_status: 'pending'
             }
           ]);
 
         if (userError) {
           console.error('Error creating user record:', userError);
+          toast.error('Failed to create user profile. Please try again.');
+          return { error: userError };
+        }
+
+        // Create additional profile data if provided
+        if (additionalData.company || additionalData.license_number) {
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .update({
+              company_name: additionalData.company || null,
+              license_number: additionalData.license_number || null,
+              mc_dot_number: additionalData.mc_dot_number || null,
+              ein_number: additionalData.ein_number || null,
+              business_address: additionalData.business_address || null
+            })
+            .eq('user_id', data.user.id);
+
+          if (profileError) {
+            console.error('Error updating user profile:', profileError);
+            // Don't fail the whole signup for profile errors
+          }
         }
 
         toast.success('Account created successfully! Please check your email to verify your account.');
@@ -144,23 +155,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       return { error: null };
     } catch (err) {
+      console.error('Signup error:', err);
       const error = err as Error;
-      toast.error(error.message);
+      toast.error(`Registration failed: ${error.message}`);
       return { error };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Log the attempt
+      await supabase.from('audit_logs').insert([{
+        action: 'login_attempt',
+        metadata: { email }
+      }]);
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        // Log failed attempt
+        await supabase.from('audit_logs').insert([{
+          action: 'login_failed',
+          metadata: { email, error: error.message }
+        }]);
+        
         toast.error(error.message);
         return { error };
       }
+
+      // Log successful attempt
+      await supabase.from('audit_logs').insert([{
+        action: 'login_success',
+        metadata: { email }
+      }]);
 
       toast.success('Welcome back!');
       return { error: null };
