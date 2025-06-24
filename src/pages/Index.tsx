@@ -3,53 +3,51 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Package, Clock, DollarSign, Users, Shield } from "lucide-react";
+
 import AuthModal from "@/components/AuthModal";
 import ShipperDashboard from "@/components/ShipperDashboard";
 import DriverDashboard from "@/components/DriverDashboard";
 
+const AdminDashboard = lazy(() => import("@/components/AdminDashboard"));
+
 const Index = () => {
   const [showAuth, setShowAuth] = useState(false);
-  const [userType, setUserType] = useState<'shipper' | 'driver' | 'admin' | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"shipper" | "driver" | "admin" | null>(null);
+  const [userType, setUserType] = useState<"shipper" | "driver" | "admin" | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<'shipper' | 'driver' | 'admin' | null>(null);
 
-  const handleRoleSelect = (role: 'shipper' | 'driver' | 'admin') => {
+  const handleRoleSelect = (role: "shipper" | "driver" | "admin") => {
     setSelectedRole(role);
     setShowAuth(true);
   };
 
   const handleLogin = () => {
-    setIsLoggedIn(true);
     setUserType(selectedRole);
+    setIsLoggedIn(true);
     setShowAuth(false);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
     setUserType(null);
     setSelectedRole(null);
+    setIsLoggedIn(false);
   };
 
-  if (isLoggedIn && userType === 'shipper') {
-    return <ShipperDashboard onLogout={handleLogout} />;
-  }
-
-  if (isLoggedIn && userType === 'driver') {
-    return <DriverDashboard onLogout={handleLogout} />;
-  }
-
-  if (isLoggedIn && userType === 'admin') {
-    const AdminDashboard = lazy(() => import('@/components/AdminDashboard'));
-    return (
-      <Suspense fallback={<div>Loading...</div>}>
-        <AdminDashboard onLogout={handleLogout} />
-      </Suspense>
-    );
+  if (isLoggedIn) {
+    if (userType === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
+    if (userType === "driver") return <DriverDashboard onLogout={handleLogout} />;
+    if (userType === "admin") {
+      return (
+        <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
+          <AdminDashboard onLogout={handleLogout} />
+        </Suspense>
+      );
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
-      {/* Navigation */}
+      {/* Navbar */}
       <nav className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -60,25 +58,13 @@ const Index = () => {
               </span>
             </div>
             <div className="flex space-x-4">
-              <Button 
-                variant="ghost" 
-                onClick={() => handleRoleSelect('shipper')}
-                className="hover:bg-blue-50"
-              >
+              <Button variant="ghost" onClick={() => handleRoleSelect("shipper")} className="hover:bg-blue-50">
                 Shipper Login
               </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => handleRoleSelect('driver')}
-                className="hover:bg-orange-50"
-              >
+              <Button variant="ghost" onClick={() => handleRoleSelect("driver")} className="hover:bg-orange-50">
                 Driver Login
               </Button>
-              <Button 
-                variant="ghost" 
-                onClick={() => handleRoleSelect('admin')}
-                className="hover:bg-gray-50 text-xs"
-              >
+              <Button variant="ghost" onClick={() => handleRoleSelect("admin")} className="hover:bg-gray-50 text-xs">
                 Admin
               </Button>
             </div>
@@ -86,57 +72,53 @@ const Index = () => {
         </div>
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-            Move freight faster.{' '}
+            Move freight faster.{" "}
             <span className="bg-gradient-to-r from-blue-700 to-orange-500 bg-clip-text text-transparent">
               Skip the broker fees.
             </span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Connect warehouse shippers directly with truck drivers. No middlemen, no delays, 
-            no unnecessary fees. Just fast, direct freight connections.
+            Connect warehouse shippers directly with truck drivers. No middlemen, no delays, no unnecessary fees.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="bg-dock-blue hover:bg-blue-800 text-white px-8 py-4 text-lg"
-              onClick={() => handleRoleSelect('shipper')}
+              onClick={() => handleRoleSelect("shipper")}
             >
               <Package className="mr-2 h-5 w-5" />
               I'm a Shipper
             </Button>
-            <Button 
-              size="lg" 
-              variant="outline" 
+            <Button
+              size="lg"
+              variant="outline"
               className="border-dock-orange text-dock-orange hover:bg-dock-orange hover:text-white px-8 py-4 text-lg"
-              onClick={() => handleRoleSelect('driver')}
+              onClick={() => handleRoleSelect("driver")}
             >
               <Truck className="mr-2 h-5 w-5" />
               I'm a Driver
             </Button>
           </div>
 
-          {/* Urgent Load Demo */}
           <Card className="max-w-md mx-auto mb-12 border-red-200 bg-red-50">
             <CardHeader className="pb-3">
-              <Badge className="w-fit mx-auto bg-red-500 text-white urgent-pulse">
-                URGENT LOAD
-              </Badge>
+              <Badge className="w-fit mx-auto bg-red-500 text-white urgent-pulse">URGENT LOAD</Badge>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-700">
-                Chicago, IL → Detroit, MI • 22 pallets • $2,400 • 
-                <span className="font-semibold text-red-600"> Pickup in 2 hours</span>
+                Chicago, IL → Detroit, MI • 22 pallets • $2,400 •{" "}
+                <span className="font-semibold text-red-600">Pickup in 2 hours</span>
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Features Grid */}
+        {/* Features */}
         <div className="grid md:grid-cols-3 gap-8 mt-20">
           <Card className="text-center hover:shadow-lg transition-shadow">
             <CardHeader>
@@ -211,11 +193,12 @@ const Index = () => {
         </Card>
       </div>
 
-      {showAuth && (
+      {/* Auth Modal */}
+      {showAuth && selectedRole && selectedRole !== "admin" && (
         <AuthModal
           isOpen={showAuth}
           onClose={() => setShowAuth(false)}
-          userType={selectedRole!}
+          userType={selectedRole}
           onLogin={handleLogin}
         />
       )}
