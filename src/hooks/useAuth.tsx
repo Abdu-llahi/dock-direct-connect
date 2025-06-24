@@ -50,17 +50,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               if (userData && !error) {
                 setUser({
                   ...session.user,
-                  role: userData.role,
+                  role: userData.role as UserRole,
                   name: userData.name,
                   verification_status: userData.verification_status,
                   status: userData.status
-                });
+                } as AuthUser);
               } else {
-                setUser(session.user);
+                setUser({
+                  ...session.user,
+                  role: undefined,
+                  name: undefined,
+                  verification_status: undefined,
+                  status: undefined
+                } as AuthUser);
               }
             } catch (err) {
               console.error('Error fetching user data:', err);
-              setUser(session.user);
+              setUser({
+                ...session.user,
+                role: undefined,
+                name: undefined,
+                verification_status: undefined,
+                status: undefined
+              } as AuthUser);
             }
           }, 0);
         } else {
@@ -74,7 +86,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        setUser(session.user);
+        setUser({
+          ...session.user,
+          role: undefined,
+          name: undefined,
+          verification_status: undefined,
+          status: undefined
+        } as AuthUser);
       }
       setLoading(false);
     });
