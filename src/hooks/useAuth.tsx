@@ -8,6 +8,7 @@ type UserType = 'shipper' | 'driver' | 'admin';
 
 interface AuthUser extends User {
   user_type?: UserType;
+  role?: UserType;
   name?: string;
   verification_status?: string;
   phone?: string;
@@ -43,14 +44,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             try {
               const { data: userData, error } = await supabase
                 .from('users')
-                .select('user_type, name, verification_status, phone')
+                .select('role, name, verification_status, phone')
                 .eq('id', session.user.id)
                 .single();
 
               if (userData && !error) {
                 setUser({
                   ...session.user,
-                  user_type: userData.user_type as UserType,
+                  user_type: userData.role as UserType,
+                  role: userData.role as UserType,
                   name: userData.name,
                   verification_status: userData.verification_status,
                   phone: userData.phone
@@ -111,15 +113,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.user) {
         console.log('Auth user created, now creating user record');
         
-        // Create user record in our users table
+        // Create user record in our users table with the correct schema
         const { error: userError } = await supabase
           .from('users')
           .insert([
             {
               id: data.user.id,
-              email: email,
               name: name,
-              user_type: userType,
+              role: userType, // Use 'role' instead of 'user_type'
               phone: additionalData.phone || null,
               verification_status: 'pending'
             }
@@ -132,11 +133,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         // Create additional profile data if provided
-        if (additionalData.company || additionalData.license_number) {
+        if (additionalData.company_name || additionalData.license_number) {
           const { error: profileError } = await supabase
             .from('user_profiles')
             .update({
-              company_name: additionalData.company || null,
+              company_name: additionalData.company_name || additionalData.company || null,
               license_number: additionalData.license_number || null,
               mc_dot_number: additionalData.mc_dot_number || null,
               ein_number: additionalData.ein_number || null,
