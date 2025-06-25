@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             try {
               const { data: userData, error } = await supabase
                 .from('users')
-                .select('role, name, verification_status, phone')
+                .select('role, name, verification_status, phone, email')
                 .eq('id', session.user.id)
                 .single();
 
@@ -113,14 +113,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.user) {
         console.log('Auth user created, now creating user record');
         
-        // Create user record in our users table with the correct schema
+        // Create user record in our users table with the correct schema including email
         const { error: userError } = await supabase
           .from('users')
           .insert([
             {
               id: data.user.id,
+              email: email,
               name: name,
-              role: userType, // Use 'role' instead of 'user_type'
+              role: userType,
               phone: additionalData.phone || null,
               verification_status: 'pending'
             }
@@ -133,20 +134,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         // Create additional profile data if provided
-        if (additionalData.company_name || additionalData.license_number) {
+        if (additionalData.company_name || additionalData.company || additionalData.license_number) {
           const { error: profileError } = await supabase
             .from('user_profiles')
-            .update({
-              company_name: additionalData.company_name || additionalData.company || null,
-              license_number: additionalData.license_number || null,
-              mc_dot_number: additionalData.mc_dot_number || null,
-              ein_number: additionalData.ein_number || null,
-              business_address: additionalData.business_address || null
-            })
-            .eq('user_id', data.user.id);
+            .insert([
+              {
+                user_id: data.user.id,
+                company_name: additionalData.company_name || additionalData.company || null,
+                license_number: additionalData.license_number || null,
+                mc_dot_number: additionalData.mc_dot_number || null,
+                business_address: additionalData.business_address || null
+              }
+            ]);
 
           if (profileError) {
-            console.error('Error updating user profile:', profileError);
+            console.error('Error creating user profile:', profileError);
             // Don't fail the whole signup for profile errors
           }
         }
