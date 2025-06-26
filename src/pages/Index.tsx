@@ -42,15 +42,29 @@ const Index = () => {
     );
   }
 
-  // Show appropriate dashboard if logged in
-  if (user?.role === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
-  if (user?.role === "driver") return <DriverDashboard onLogout={handleLogout} />;
-  if (user?.role === "admin") {
-    return (
-      <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
-        <AdminDashboard onLogout={handleLogout} />
-      </Suspense>
-    );
+  // Show appropriate dashboard if logged in and has role
+  if (user) {
+    console.log('User object:', user);
+    console.log('User role:', user.role);
+    console.log('User user_type:', user.user_type);
+    
+    // Check for role in multiple possible fields
+    const userRole = user.role || user.user_type;
+    
+    if (userRole === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
+    if (userRole === "driver") return <DriverDashboard onLogout={handleLogout} />;
+    if (userRole === "admin") {
+      return (
+        <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
+          <AdminDashboard onLogout={handleLogout} />
+        </Suspense>
+      );
+    }
+    
+    // If user exists but no role is found, show a message or redirect to role selection
+    if (!userRole) {
+      console.log('User exists but no role found, showing role selection');
+    }
   }
 
   return (
@@ -65,6 +79,9 @@ const Index = () => {
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600">
                     Welcome, {user.name || user.email}
+                    {!user.role && !user.user_type && (
+                      <span className="text-orange-600 ml-2">(Please select your role below)</span>
+                    )}
                   </span>
                   <Button 
                     variant="ghost" 
@@ -128,9 +145,8 @@ const Index = () => {
             </div>
           </div>
         </div>
-      </footer>
-    </div>
-  );
+      </div>
+    );
 };
 
 export default Index;
