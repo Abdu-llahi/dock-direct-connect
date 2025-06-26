@@ -28,13 +28,15 @@ const Index = () => {
     await signOut();
   };
 
+  console.log('Index render - Loading:', loading, 'User:', user?.id, 'Role:', user?.role || user?.user_type);
+
   // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-orange-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading DockDirect...</p>
         </div>
       </div>
     );
@@ -42,37 +44,32 @@ const Index = () => {
 
   // Show appropriate dashboard if logged in and has role
   if (user) {
-    console.log('User object:', user);
-    console.log('User role:', user.role);
-    console.log('User user_type:', user.user_type);
-    
-    // Check for role in multiple possible fields
     const userRole = user.role || user.user_type;
-    console.log('Detected user role:', userRole);
+    console.log('User detected with role:', userRole);
     
     if (userRole === "shipper") {
-      console.log('Redirecting to shipper dashboard');
       return <ShipperDashboard onLogout={handleLogout} />;
     }
     if (userRole === "driver") {
-      console.log('Redirecting to driver dashboard');
       return <DriverDashboard onLogout={handleLogout} />;
     }
     if (userRole === "admin") {
-      console.log('Redirecting to admin dashboard');
       return (
-        <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
+        <Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading admin dashboard...</p>
+            </div>
+          </div>
+        }>
           <AdminDashboard onLogout={handleLogout} />
         </Suspense>
       );
     }
-    
-    // If user exists but no role is found, show a message
-    if (!userRole) {
-      console.log('User exists but no role found');
-    }
   }
 
+  // Show landing page for non-authenticated users or users without roles
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
       {/* Navbar */}

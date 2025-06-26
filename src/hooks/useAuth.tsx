@@ -32,22 +32,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let isMounted = true;
+
+    // Set up auth state listener first
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
+        if (!isMounted) return;
+
+        setSession(session);
+        
+        if (session?.user) {
+          // Fetch user data with timeout to avoid blocking
+          setTimeout(async () => {
+            if (isMounted) {
+              await fetchUserData(session.user);
+            }
+          }, 0);
+        } else {
+          setUser(null);
+          if (isMounted) {
+            setLoading(false);
+          }
+        }
+      }
+    );
 
     // Get initial session
-    const getSession = async () => {
+    const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
+        
         if (error) {
           console.error('Error getting session:', error);
-          if (mounted) {
+          if (isMounted) {
             setLoading(false);
           }
           return;
         }
 
-        console.log('Initial session:', session?.user?.id);
-        if (mounted) {
+        if (isMounted) {
           setSession(session);
           if (session?.user) {
             await fetchUserData(session.user);
@@ -56,35 +81,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       } catch (error) {
-        console.error('Session error:', error);
-        if (mounted) {
+        console.error('Session initialization error:', error);
+        if (isMounted) {
           setLoading(false);
         }
       }
     };
 
-    getSession();
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.id);
-        
-        if (!mounted) return;
-
-        setSession(session);
-        
-        if (session?.user) {
-          await fetchUserData(session.user);
-        } else {
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    );
+    initializeAuth();
 
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -99,9 +106,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', authUser.id)
         .single();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error fetching user data:', error);
-        // If user doesn't exist in our users table, use auth data only
+        // Set user with auth data only
         setUser(authUser as AuthUser);
       } else if (userData) {
         console.log('User data found:', userData);
@@ -114,7 +121,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           phone: userData.phone
         } as AuthUser);
       } else {
-        console.log('No user data found, using auth data only');
+        console.log('No user data found in database, using auth data only');
         setUser(authUser as AuthUser);
       }
     } catch (err) {
@@ -129,7 +136,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('Starting signup process for:', email, userType);
       
-      // First, sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -149,7 +155,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (data.user && !data.session) {
-        // Email confirmation required
         toast.success('Please check your email to confirm your account before signing in.');
         return { error: null };
       }
@@ -157,7 +162,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (data.user && data.session) {
         console.log('User signed up and logged in, creating profile');
         
-        // Create user record in our users table
         const { error: userError } = await supabase
           .from('users')
           .insert([
@@ -175,7 +179,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('User creation error:', userError);
           toast.warning('Account created but profile setup incomplete. Please try signing in.');
         } else {
-          // Create additional profile data if provided
           if (additionalData.company_name || additionalData.company || additionalData.license_number) {
             const { error: profileError } = await supabase
               .from('user_profiles')
@@ -262,7 +265,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error };
       }
 
-      // Update local user state
       setUser(prev => prev ? { ...prev, ...updates } : null);
       toast.success('Profile updated successfully');
       return { error: null };
