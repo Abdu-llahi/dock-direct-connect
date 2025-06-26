@@ -32,21 +32,46 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session:', session?.user?.id);
-      setSession(session);
-      if (session?.user) {
-        fetchUserData(session.user);
-      } else {
-        setLoading(false);
+    const getSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting session:', error);
+          if (mounted) {
+            setLoading(false);
+          }
+          return;
+        }
+
+        console.log('Initial session:', session?.user?.id);
+        if (mounted) {
+          setSession(session);
+          if (session?.user) {
+            await fetchUserData(session.user);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (error) {
+        console.error('Session error:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-    });
+    };
+
+    getSession();
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id);
+        
+        if (!mounted) return;
+
         setSession(session);
         
         if (session?.user) {
@@ -58,7 +83,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserData = async (authUser: User) => {
@@ -71,7 +99,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .eq('id', authUser.id)
         .single();
 
-      if (userData && !error) {
+      if (error) {
+        console.error('Error fetching user data:', error);
+        // If user doesn't exist in our users table, use auth data only
+        setUser(authUser as AuthUser);
+      } else if (userData) {
         console.log('User data found:', userData);
         setUser({
           ...authUser,
@@ -82,7 +114,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           phone: userData.phone
         } as AuthUser);
       } else {
-        console.log('User data not found, using auth data only:', error);
+        console.log('No user data found, using auth data only');
         setUser(authUser as AuthUser);
       }
     } catch (err) {
@@ -141,30 +173,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (userError) {
           console.error('User creation error:', userError);
-          // Don't fail signup for profile creation errors
           toast.warning('Account created but profile setup incomplete. Please try signing in.');
-        }
+        } else {
+          // Create additional profile data if provided
+          if (additionalData.company_name || additionalData.company || additionalData.license_number) {
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert([
+                {
+                  user_id: data.user.id,
+                  company_name: additionalData.company_name || additionalData.company || null,
+                  license_number: additionalData.license_number || null,
+                  mc_dot_number: additionalData.mc_dot_number || null,
+                  business_address: additionalData.business_address || null
+                }
+              ]);
 
-        // Create additional profile data if provided
-        if (additionalData.company_name || additionalData.company || additionalData.license_number) {
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert([
-              {
-                user_id: data.user.id,
-                company_name: additionalData.company_name || additionalData.company || null,
-                license_number: additionalData.license_number || null,
-                mc_dot_number: additionalData.mc_dot_number || null,
-                business_address: additionalData.business_address || null
-              }
-            ]);
-
-          if (profileError) {
-            console.error('Error creating user profile:', profileError);
+            if (profileError) {
+              console.error('Error creating user profile:', profileError);
+            }
           }
+          toast.success('Account created successfully!');
         }
-
-        toast.success('Account created successfully!');
       }
 
       return { error: null };
