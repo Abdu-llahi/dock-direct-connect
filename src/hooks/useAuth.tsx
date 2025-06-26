@@ -32,6 +32,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session?.user?.id);
+      setSession(session);
+      if (session?.user) {
+        fetchUserData(session.user);
+      } else {
+        setLoading(false);
+      }
+    });
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -39,63 +50,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         
         if (session?.user) {
-          // Defer Supabase calls to avoid deadlock
-          setTimeout(async () => {
-            try {
-              const { data: userData, error } = await supabase
-                .from('users')
-                .select('role, name, verification_status, phone, email')
-                .eq('id', session.user.id)
-                .single();
-
-              if (userData && !error) {
-                setUser({
-                  ...session.user,
-                  user_type: userData.role as UserType,
-                  role: userData.role as UserType,
-                  name: userData.name,
-                  verification_status: userData.verification_status,
-                  phone: userData.phone
-                } as AuthUser);
-              } else {
-                console.log('User data not found in users table, using auth data only');
-                setUser(session.user as AuthUser);
-              }
-            } catch (err) {
-              console.error('Error fetching user data:', err);
-              setUser(session.user as AuthUser);
-            }
-          }, 0);
+          await fetchUserData(session.user);
         } else {
           setUser(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        setUser(session.user as AuthUser);
-      }
-      setLoading(false);
-    });
-
     return () => subscription.unsubscribe();
   }, []);
+
+  const fetchUserData = async (authUser: User) => {
+    try {
+      console.log('Fetching user data for:', authUser.id);
+      
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('role, name, verification_status, phone, email')
+        .eq('id', authUser.id)
+        .single();
+
+      if (userData && !error) {
+        console.log('User data found:', userData);
+        setUser({
+          ...authUser,
+          user_type: userData.role as UserType,
+          role: userData.role as UserType,
+          name: userData.name,
+          verification_status: userData.verification_status,
+          phone: userData.phone
+        } as AuthUser);
+      } else {
+        console.log('User data not found, using auth data only:', error);
+        setUser(authUser as AuthUser);
+      }
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setUser(authUser as AuthUser);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const signUp = async (email: string, password: string, name: string, userType: UserType, additionalData: any = {}) => {
     try {
       console.log('Starting signup process for:', email, userType);
       
-      const redirectUrl = `${window.location.origin}/`;
-      
+      // First, sign up the user
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             name,
             user_type: userType,
@@ -110,85 +116,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return { error };
       }
 
-      if (data.user) {
-        console.log('Auth user created, now creating user record');
-        
-        // Wait a moment for auth to fully establish
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Create user record in our users table with retry logic
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        while (retryCount < maxRetries) {
-          try {
-            const { error: userError } = await supabase
-              .from('users')
-              .insert([
-                {
-                  id: data.user.id,
-                  email: email,
-                  name: name,
-                  role: userType,
-                  phone: additionalData.phone || null,
-                  verification_status: 'pending'
-                }
-              ]);
+      if (data.user && !data.session) {
+        // Email confirmation required
+        toast.success('Please check your email to confirm your account before signing in.');
+        return { error: null };
+      }
 
-            if (userError) {
-              console.error(`User creation attempt ${retryCount + 1} failed:`, userError);
-              
-              if (retryCount === maxRetries - 1) {
-                toast.error('Failed to create user profile. Please try again.');
-                return { error: userError };
-              }
-              
-              retryCount++;
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              continue;
+      if (data.user && data.session) {
+        console.log('User signed up and logged in, creating profile');
+        
+        // Create user record in our users table
+        const { error: userError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              name: name,
+              role: userType,
+              phone: additionalData.phone || null,
+              verification_status: 'pending'
             }
+          ]);
 
-            console.log('User record created successfully');
-            break;
-          } catch (err) {
-            console.error(`User creation error on attempt ${retryCount + 1}:`, err);
-            retryCount++;
-            
-            if (retryCount === maxRetries) {
-              toast.error('Failed to create user profile. Please try again.');
-              return { error: err };
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
+        if (userError) {
+          console.error('User creation error:', userError);
+          // Don't fail signup for profile creation errors
+          toast.warning('Account created but profile setup incomplete. Please try signing in.');
         }
 
         // Create additional profile data if provided
         if (additionalData.company_name || additionalData.company || additionalData.license_number) {
-          try {
-            const { error: profileError } = await supabase
-              .from('user_profiles')
-              .insert([
-                {
-                  user_id: data.user.id,
-                  company_name: additionalData.company_name || additionalData.company || null,
-                  license_number: additionalData.license_number || null,
-                  mc_dot_number: additionalData.mc_dot_number || null,
-                  business_address: additionalData.business_address || null
-                }
-              ]);
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert([
+              {
+                user_id: data.user.id,
+                company_name: additionalData.company_name || additionalData.company || null,
+                license_number: additionalData.license_number || null,
+                mc_dot_number: additionalData.mc_dot_number || null,
+                business_address: additionalData.business_address || null
+              }
+            ]);
 
-            if (profileError) {
-              console.error('Error creating user profile:', profileError);
-              // Don't fail the whole signup for profile errors
-            }
-          } catch (err) {
-            console.error('Profile creation error:', err);
-            // Don't fail the whole signup for profile errors
+          if (profileError) {
+            console.error('Error creating user profile:', profileError);
           }
         }
 
-        toast.success('Account created successfully! Please check your email to verify your account.');
+        toast.success('Account created successfully!');
       }
 
       return { error: null };
@@ -202,38 +178,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Log the attempt
-      await supabase.from('audit_logs').insert([{
-        action: 'login_attempt',
-        metadata: { email }
-      }]);
-
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('Attempting sign in for:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
-        // Log failed attempt
-        await supabase.from('audit_logs').insert([{
-          action: 'login_failed',
-          metadata: { email, error: error.message }
-        }]);
-        
+        console.error('Sign in error:', error);
         toast.error(error.message);
         return { error };
       }
 
-      // Log successful attempt
-      await supabase.from('audit_logs').insert([{
-        action: 'login_success',
-        metadata: { email }
-      }]);
+      if (data.user) {
+        console.log('Sign in successful:', data.user.id);
+        toast.success('Welcome back!');
+      }
 
-      toast.success('Welcome back!');
       return { error: null };
     } catch (err) {
       const error = err as Error;
+      console.error('Sign in error:', err);
       toast.error(error.message);
       return { error };
     }

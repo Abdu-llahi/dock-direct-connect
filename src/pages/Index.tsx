@@ -50,10 +50,18 @@ const Index = () => {
     
     // Check for role in multiple possible fields
     const userRole = user.role || user.user_type;
+    console.log('Detected user role:', userRole);
     
-    if (userRole === "shipper") return <ShipperDashboard onLogout={handleLogout} />;
-    if (userRole === "driver") return <DriverDashboard onLogout={handleLogout} />;
+    if (userRole === "shipper") {
+      console.log('Redirecting to shipper dashboard');
+      return <ShipperDashboard onLogout={handleLogout} />;
+    }
+    if (userRole === "driver") {
+      console.log('Redirecting to driver dashboard');
+      return <DriverDashboard onLogout={handleLogout} />;
+    }
     if (userRole === "admin") {
+      console.log('Redirecting to admin dashboard');
       return (
         <Suspense fallback={<div className="text-center py-10">Loading admin dashboard...</div>}>
           <AdminDashboard onLogout={handleLogout} />
@@ -61,9 +69,9 @@ const Index = () => {
       );
     }
     
-    // If user exists but no role is found, show a message or redirect to role selection
+    // If user exists but no role is found, show a message
     if (!userRole) {
-      console.log('User exists but no role found, showing role selection');
+      console.log('User exists but no role found');
     }
   }
 
@@ -80,7 +88,9 @@ const Index = () => {
                   <span className="text-sm text-gray-600">
                     Welcome, {user.name || user.email}
                     {!user.role && !user.user_type && (
-                      <span className="text-orange-600 ml-2">(Please select your role below)</span>
+                      <span className="text-red-600 ml-2 font-medium">
+                        (Account setup incomplete - please contact support)
+                      </span>
                     )}
                   </span>
                   <Button 
