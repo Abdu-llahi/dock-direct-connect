@@ -140,6 +140,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name,
             user_type: userType,
@@ -179,16 +180,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           console.error('User creation error:', userError);
           toast.warning('Account created but profile setup incomplete. Please try signing in.');
         } else {
-          if (additionalData.company_name || additionalData.company || additionalData.license_number) {
+          if (additionalData.company || additionalData.license_number) {
             const { error: profileError } = await supabase
               .from('user_profiles')
               .insert([
                 {
                   user_id: data.user.id,
-                  company_name: additionalData.company_name || additionalData.company || null,
+                  company_name: additionalData.company || null,
                   license_number: additionalData.license_number || null,
                   mc_dot_number: additionalData.mc_dot_number || null,
-                  business_address: additionalData.business_address || null
+                  address: additionalData.business_address || null
                 }
               ]);
 
