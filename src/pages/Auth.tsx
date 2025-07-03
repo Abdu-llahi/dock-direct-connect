@@ -50,9 +50,70 @@ const Auth = () => {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Comprehensive input validation
     if (!formData.email || !formData.password || !formData.name || !formData.userType) {
       toast.error('Please fill in all required fields');
       return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Password strength validation
+    if (formData.password.length < 8) {
+      toast.error('Password must be at least 8 characters long');
+      return;
+    }
+
+    // Name validation (no special characters except spaces, hyphens, apostrophes)
+    const nameRegex = /^[a-zA-Z\s\-']+$/;
+    if (!nameRegex.test(formData.name.trim())) {
+      toast.error('Name can only contain letters, spaces, hyphens, and apostrophes');
+      return;
+    }
+
+    // Phone number validation (optional but must be valid if provided)
+    if (formData.phone) {
+      const phoneRegex = /^\+?[\d\s\-\(\)\.]{10,}$/;
+      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+        toast.error('Please enter a valid phone number');
+        return;
+      }
+    }
+
+    // Driver-specific validations
+    if (formData.userType === 'driver') {
+      if (formData.license_number) {
+        const licenseRegex = /^[A-Z0-9\-]{6,}$/i;
+        if (!licenseRegex.test(formData.license_number)) {
+          toast.error('CDL License number must be at least 6 characters with letters, numbers, and hyphens only');
+          return;
+        }
+      }
+      
+      if (formData.mc_dot_number) {
+        const mcDotRegex = /^(MC|DOT)?\s*\d+$/i;
+        if (!mcDotRegex.test(formData.mc_dot_number)) {
+          toast.error('MC/DOT number must contain only numbers and optionally MC or DOT prefix');
+          return;
+        }
+      }
+    }
+
+    // Shipper-specific validations
+    if (formData.userType === 'shipper') {
+      if (formData.ein_number) {
+        const einRegex = /^\d{2}-\d{7}$/;
+        if (!einRegex.test(formData.ein_number)) {
+          toast.error('EIN number must be in format: 12-3456789');
+          return;
+        }
+      }
     }
 
     setIsSubmitting(true);
@@ -76,8 +137,16 @@ const Auth = () => {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!formData.email || !formData.password) {
       toast.error('Please enter your email and password');
+      return;
+    }
+
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -184,10 +253,11 @@ const Auth = () => {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Create a strong password"
+                      placeholder="Create a strong password (min 8 characters)"
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                       required
+                      minLength={8}
                     />
                   </div>
                   <div className="space-y-2">
@@ -195,9 +265,11 @@ const Auth = () => {
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="(555) 123-4567"
+                      placeholder="(555) 123-4567 or +1-555-123-4567"
                       value={formData.phone}
                       onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      pattern="[\d\s\-\(\)\.\+]+"
+                      title="Enter a valid phone number"
                     />
                   </div>
                   <div className="space-y-2">

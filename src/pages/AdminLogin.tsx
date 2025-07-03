@@ -9,45 +9,63 @@ import { Shield, AlertCircle, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import Logo from '@/components/ui/logo';
+import { useAuth } from '@/hooks/useAuth';
 
-// Temporary hardcoded credentials - replace with proper auth later
-const ADMIN_CREDENTIALS = {
-  username: 'dockdirect_admin',
-  password: 'SecureAdmin2024!'
-};
+// Admin authentication now uses proper Supabase auth
+// Admins must be created through the signup process with role 'admin'
 
 const AdminLogin = () => {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
+  const { user, loading, signIn } = useAuth();
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    localStorage.getItem('admin_authenticated') === 'true'
-  );
 
-  if (isAuthenticated) {
+  // Redirect if already authenticated as admin
+  if (user && (user.role === 'admin' || user.user_type === 'admin')) {
     return <Navigate to="/admin-dashboard" replace />;
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(credentials.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    // Validate password length
+    if (credentials.password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Simulate network delay for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      if (
-        credentials.username === ADMIN_CREDENTIALS.username && 
-        credentials.password === ADMIN_CREDENTIALS.password
-      ) {
-        localStorage.setItem('admin_authenticated', 'true');
-        toast.success('Admin access granted');
-        setIsAuthenticated(true);
+      const { error } = await signIn(credentials.email, credentials.password);
+      
+      if (error) {
+        toast.error('Invalid admin credentials');
       } else {
-        toast.error('Invalid login credentials');
+        // Check if the logged-in user is actually an admin
+        // The useAuth hook will handle the redirect in the component above
+        toast.success('Admin access granted');
       }
     } catch (error) {
-      toast.error('Database error saving user');
       console.error('Admin login error:', error);
+      toast.error('Login failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -99,14 +117,14 @@ const AdminLogin = () => {
             
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="username" className="text-gray-700 font-medium">Username</Label>
+                <Label htmlFor="email" className="text-gray-700 font-medium">Admin Email</Label>
                 <Input
-                  id="username"
-                  type="text"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials(prev => ({ ...prev, username: e.target.value }))}
+                  id="email"
+                  type="email"
+                  value={credentials.email}
+                  onChange={(e) => setCredentials(prev => ({ ...prev, email: e.target.value }))}
                   className="border-gray-300 focus:border-red-500 focus:ring-red-500"
-                  placeholder="Admin username"
+                  placeholder="admin@example.com"
                   required
                 />
               </div>
@@ -118,8 +136,9 @@ const AdminLogin = () => {
                   value={credentials.password}
                   onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
                   className="border-gray-300 focus:border-red-500 focus:ring-red-500"
-                  placeholder="Admin password"
+                  placeholder="Enter your password"
                   required
+                  minLength={6}
                 />
               </div>
               <Button 
