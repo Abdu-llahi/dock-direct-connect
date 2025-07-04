@@ -11,6 +11,7 @@ import RatingModal from "@/components/RatingModal";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import StatsCards from "@/components/dashboard/StatsCards";
 import LoadList from "@/components/dashboard/LoadList";
+import PendingLoadsTab from "@/components/dashboard/PendingLoadsTab";
 import PricingModal from "@/components/monetization/PricingModal";
 
 interface ShipperDashboardProps {
@@ -104,6 +105,10 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
   };
 
   const handleEmergencyToggle = (checked: boolean) => {
+    if (checked && currentPlan !== 'premium') {
+      setShowPricingModal(true);
+      return;
+    }
     setEmergencyMode(checked);
     if (checked) {
       console.log('🚨 EMERGENCY PUSH ACTIVATED - Notifying all nearby drivers');
@@ -148,7 +153,7 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
         )}
 
         {/* Emergency Mode Alert */}
-        {emergencyMode && (
+        {emergencyMode && currentPlan === 'premium' && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <div className="flex items-center space-x-2">
               <Bell className="h-5 w-5 text-red-500" />
@@ -157,6 +162,26 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
             <p className="text-sm text-red-600 mt-1">
               All nearby qualified drivers are being notified of your urgent loads.
             </p>
+          </div>
+        )}
+
+        {/* Emergency Mode Disabled Alert */}
+        {emergencyMode && currentPlan !== 'premium' && (
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center space-x-2">
+              <Bell className="h-5 w-5 text-orange-500" />
+              <span className="font-medium text-orange-800">Emergency Push Requires Premium</span>
+            </div>
+            <p className="text-sm text-orange-600 mt-1">
+              Upgrade to Premium to enable emergency push notifications to drivers.
+            </p>
+            <Button 
+              size="sm" 
+              onClick={() => setShowPricingModal(true)}
+              className="mt-2 bg-orange-600 hover:bg-orange-700"
+            >
+              Upgrade Now
+            </Button>
           </div>
         )}
 
@@ -242,10 +267,15 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
         {/* Main Content */}
         <Tabs defaultValue="active" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="pending">Pending Loads</TabsTrigger>
             <TabsTrigger value="active">Active Loads</TabsTrigger>
             <TabsTrigger value="completed">Completed</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="pending">
+            <PendingLoadsTab />
+          </TabsContent>
 
           <TabsContent value="active">
             <LoadList

@@ -39,7 +39,7 @@ const PricingModal = ({ isOpen, onClose, userType, currentPlan = 'free' }: Prici
     {
       id: 'premium',
       name: 'Premium',
-      price: annualBilling ? 25 : 29,
+      price: annualBilling ? 107.5 : 129,
       description: 'Priority features with reduced fees',
       features: [
         'Priority load listing',
@@ -147,14 +147,19 @@ const PricingModal = ({ isOpen, onClose, userType, currentPlan = 'free' }: Prici
                     )}
                   </CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
-                  <div className="text-3xl font-bold">
-                    ${plan.price}
-                    {plan.price > 0 && (
-                      <span className="text-base font-normal text-gray-600">
-                        /{annualBilling ? 'year' : 'month'}
-                      </span>
-                    )}
-                  </div>
+                   <div className="text-3xl font-bold">
+                     ${plan.price}
+                     {plan.price > 0 && (
+                       <span className="text-base font-normal text-gray-600">
+                         /{annualBilling ? 'year' : 'month'}
+                       </span>
+                     )}
+                   </div>
+                   {annualBilling && plan.price > 0 && (
+                     <p className="text-sm text-green-600 font-medium">
+                       ${(plan.price * 12 * 0.15).toFixed(0)} annual savings!
+                     </p>
+                   )}
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>

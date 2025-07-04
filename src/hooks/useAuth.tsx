@@ -19,7 +19,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string, userType: UserType, additionalData?: any) => Promise<{ error?: any }>;
-  signIn: (email: string, password: string) => Promise<{ error?: any }>;
+  signIn: (email: string, password: string, requiredRole?: UserType) => Promise<{ error?: any }>;
+  resetPassword: (email: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: any) => Promise<{ error?: any }>;
 }
@@ -210,7 +211,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, requiredRole?: UserType) => {
     try {
       console.log('Attempting sign in for:', email);
       
@@ -227,6 +228,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (data.user) {
         console.log('Sign in successful:', data.user.id);
+        
+        // Check role if required
+        if (requiredRole) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+          
+          if (!userData || userData.role !== requiredRole) {
+            await supabase.auth.signOut();
+            const roleNames = { shipper: 'Shipper', driver: 'Driver', admin: 'Admin' };
+            toast.error(`This page is only for ${roleNames[requiredRole]} accounts. Please use the correct login page.`);
+            return { error: new Error('Invalid role') };
+          }
+        }
+        
         toast.success('Welcome back!');
       }
 
@@ -249,6 +267,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     } catch (err) {
       console.error('Sign out error:', err);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`
+      });
+
+      if (error) {
+        toast.error(error.message);
+        return { error };
+      }
+
+      toast.success('Password reset email sent! Check your inbox.');
+      return { error: null };
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message);
+      return { error };
     }
   };
 
@@ -284,6 +322,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       signUp,
       signIn,
       signOut,
+      resetPassword,
       updateProfile
     }}>
       {children}

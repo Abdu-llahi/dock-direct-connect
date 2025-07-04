@@ -11,6 +11,7 @@ import StatsCards from "@/components/dashboard/StatsCards";
 import LoadList from "@/components/dashboard/LoadList";
 import LoadFilters from "@/components/dashboard/LoadFilters";
 import PricingModal from "@/components/monetization/PricingModal";
+import BrokerCarrierAgreement from "@/components/BrokerCarrierAgreement";
 
 interface DriverDashboardProps {
   onLogout: () => void;
@@ -27,6 +28,8 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
   const [homeBaseMode, setHomeBaseMode] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
   const [currentPlan, setCurrentPlan] = useState<'free' | 'premium'>('free');
+  const [showAgreement, setShowAgreement] = useState(false);
+  const [selectedLoad, setSelectedLoad] = useState<any>(null);
 
   // Enhanced mock data
   const availableLoads = [
@@ -114,10 +117,29 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
 
   const filteredLoads = homeBaseMode 
     ? availableLoads.filter(load => load.towardHome)
-    : availableLoads;
+    : currentPlan === 'premium' 
+      ? availableLoads 
+      : availableLoads.filter(load => !load.urgent);
 
   const handleAcceptLoad = (loadId: number) => {
-    console.log('Accepting load:', loadId);
+    const load = availableLoads.find(l => l.id === loadId);
+    if (load) {
+      setSelectedLoad({
+        id: load.id,
+        origin: load.origin,
+        destination: load.destination,
+        rate: load.rate,
+        shipper: load.shipper,
+        driver: 'Current Driver' // This would come from auth context
+      });
+      setShowAgreement(true);
+    }
+  };
+
+  const handleSignAgreement = () => {
+    console.log('Load accepted and agreement signed:', selectedLoad.id);
+    setShowAgreement(false);
+    // In real app, this would update the load status to 'assigned'
   };
 
   const handleOpenChat = (loadId: number, shipper: string) => {
@@ -159,7 +181,7 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
               <div>
                 <h3 className="font-medium text-orange-800">Upgrade to Premium</h3>
                 <p className="text-sm text-orange-600">
-                  Get priority alerts, instant payments, and home base optimization
+                  Get priority alerts, instant payments, urgent load access, and home base optimization
                 </p>
               </div>
               <Button 
@@ -167,6 +189,26 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
                 className="bg-dock-orange hover:bg-orange-600"
               >
                 Upgrade Now
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Urgent Loads Notice for Free Users */}
+        {currentPlan === 'free' && availableLoads.some(load => load.urgent) && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium text-yellow-800">Premium Loads Available</h3>
+                <p className="text-sm text-yellow-600">
+                  {availableLoads.filter(load => load.urgent).length} urgent load(s) require Premium access
+                </p>
+              </div>
+              <Button 
+                onClick={() => setShowPricingModal(true)}
+                className="bg-yellow-600 hover:bg-yellow-700"
+              >
+                Unlock Now
               </Button>
             </div>
           </div>
@@ -322,6 +364,16 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
           onClose={() => setShowPricingModal(false)}
           userType="driver"
           currentPlan={currentPlan}
+        />
+      )}
+
+      {/* Broker-Carrier Agreement Modal */}
+      {showAgreement && selectedLoad && (
+        <BrokerCarrierAgreement
+          isOpen={showAgreement}
+          onClose={() => setShowAgreement(false)}
+          loadDetails={selectedLoad}
+          onSign={handleSignAgreement}
         />
       )}
     </div>

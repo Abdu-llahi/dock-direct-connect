@@ -24,15 +24,28 @@ const LoadPostingModal = ({ isOpen, onClose }: LoadPostingModalProps) => {
     loadType: '',
     pickupDate: '',
     pickupTime: '',
+    deliveryDate: '',
+    loadDescription: '',
     rate: '',
+    paymentTerms: '',
     isUrgent: false,
     notes: ''
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
+    const requiredFields = ['origin', 'destination', 'weight', 'pickupDate', 'loadDescription', 'rate'];
+    const missingFields = requiredFields.filter(field => !formData[field as keyof typeof formData]);
+    
+    if (missingFields.length > 0) {
+      alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+    
     console.log('Posting load:', formData);
-    // In a real app, this would make an API call
+    // In a real app, this would make an API call to create the load
     onClose();
   };
 
@@ -139,12 +152,12 @@ const LoadPostingModal = ({ isOpen, onClose }: LoadPostingModalProps) => {
             </div>
           </div>
 
-          {/* Pickup Schedule */}
+          {/* Pickup & Delivery Schedule */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="pickupDate" className="flex items-center space-x-1">
                 <Clock className="h-4 w-4" />
-                <span>Pickup Date</span>
+                <span>Pickup Date *</span>
               </Label>
               <Input
                 id="pickupDate"
@@ -163,26 +176,66 @@ const LoadPostingModal = ({ isOpen, onClose }: LoadPostingModalProps) => {
                 type="time"
                 value={formData.pickupTime}
                 onChange={handleChange}
-                required
               />
             </div>
           </div>
 
-          {/* Rate */}
           <div className="space-y-2">
-            <Label htmlFor="rate" className="flex items-center space-x-1">
-              <DollarSign className="h-4 w-4" />
-              <span>Total Rate ($)</span>
-            </Label>
+            <Label htmlFor="deliveryDate">Delivery Deadline (Optional)</Label>
             <Input
-              id="rate"
-              name="rate"
-              type="number"
-              placeholder="0"
-              value={formData.rate}
+              id="deliveryDate"
+              name="deliveryDate"
+              type="date"
+              value={formData.deliveryDate}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Load Description */}
+          <div className="space-y-2">
+            <Label htmlFor="loadDescription">Load Description *</Label>
+            <Textarea
+              id="loadDescription"
+              name="loadDescription"
+              placeholder="Describe the freight, special requirements, equipment needed..."
+              value={formData.loadDescription}
               onChange={handleChange}
               required
+              rows={3}
             />
+          </div>
+
+          {/* Rate & Payment */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="rate" className="flex items-center space-x-1">
+                <DollarSign className="h-4 w-4" />
+                <span>Total Rate ($) *</span>
+              </Label>
+              <Input
+                id="rate"
+                name="rate"
+                type="number"
+                placeholder="0"
+                value={formData.rate}
+                onChange={handleChange}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="paymentTerms">Payment Terms *</Label>
+              <Select value={formData.paymentTerms} onValueChange={(value) => handleSelectChange('paymentTerms', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quick_pay">Quick Pay (24 hours)</SelectItem>
+                  <SelectItem value="net_15">Net 15 days</SelectItem>
+                  <SelectItem value="net_30">Net 30 days</SelectItem>
+                  <SelectItem value="cod">Cash on Delivery</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Urgent Toggle */}

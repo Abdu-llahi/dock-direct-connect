@@ -15,7 +15,8 @@ import Logo from '@/components/ui/logo';
 
 const Auth = () => {
   const { role } = useParams();
-  const { user, loading, signUp, signIn } = useAuth();
+  const navigate = useNavigate();
+  const { user, loading, signUp, signIn, resetPassword } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,9 +30,17 @@ const Auth = () => {
     business_address: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated - send to appropriate dashboard
   if (user && !loading) {
+    const userRole = user.role || user.user_type;
+    if (userRole === 'shipper') {
+      return <Navigate to="/shipper-dashboard" replace />;
+    } else if (userRole === 'driver') {
+      return <Navigate to="/driver-dashboard" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 
@@ -131,7 +140,17 @@ const Auth = () => {
       additionalData.mc_dot_number = formData.mc_dot_number;
     }
 
-    await signUp(formData.email, formData.password, formData.name, formData.userType, additionalData);
+    const { error } = await signUp(formData.email, formData.password, formData.name, formData.userType, additionalData);
+    
+    if (!error) {
+      // Navigate to appropriate dashboard after successful signup
+      if (formData.userType === 'shipper') {
+        navigate('/shipper-dashboard');
+      } else if (formData.userType === 'driver') {
+        navigate('/driver-dashboard');
+      }
+    }
+    
     setIsSubmitting(false);
   };
 
@@ -151,8 +170,33 @@ const Auth = () => {
     }
 
     setIsSubmitting(true);
-    await signIn(formData.email, formData.password);
+    const { error } = await signIn(formData.email, formData.password, role as 'shipper' | 'driver');
+    
+    if (!error) {
+      // Navigate to appropriate dashboard after successful login
+      if (role === 'shipper') {
+        navigate('/shipper-dashboard');
+      } else if (role === 'driver') {
+        navigate('/driver-dashboard');
+      }
+    }
+    
     setIsSubmitting(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!resetEmail) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    const { error } = await resetPassword(resetEmail);
+    if (!error) {
+      setShowForgotPassword(false);
+      setResetEmail('');
+    }
   };
 
   return (
@@ -211,16 +255,25 @@ const Auth = () => {
                       placeholder="Enter your password"
                       value={formData.password}
                       onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Signing In...' : 'Sign In'}
-                  </Button>
+                     required
+                   />
+                 </div>
+                 <div className="text-center">
+                   <button
+                     type="button"
+                     onClick={() => setShowForgotPassword(true)}
+                     className="text-sm text-blue-600 hover:text-blue-800 underline"
+                   >
+                     Forgot Password?
+                   </button>
+                 </div>
+                 <Button 
+                   type="submit" 
+                   className="w-full" 
+                   disabled={isSubmitting}
+                 >
+                   {isSubmitting ? 'Signing In...' : 'Sign In'}
+                 </Button>
                 </form>
               </TabsContent>
 
@@ -272,33 +325,34 @@ const Auth = () => {
                       title="Enter a valid phone number"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="userType">I am a...</Label>
-                    <Select 
-                      value={formData.userType} 
-                      onValueChange={(value: 'shipper' | 'driver') => 
-                        setFormData(prev => ({ ...prev, userType: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="shipper">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-blue-700" />
-                            Shipper - I need to move freight
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="driver">
-                          <div className="flex items-center gap-2">
-                            <Truck className="h-4 w-4 text-orange-500" />
-                            Driver - I haul freight
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="userType">I am a... *</Label>
+                     <Select 
+                       value={formData.userType} 
+                       onValueChange={(value: 'shipper' | 'driver') => 
+                         setFormData(prev => ({ ...prev, userType: value }))
+                       }
+                       required
+                     >
+                       <SelectTrigger>
+                         <SelectValue />
+                       </SelectTrigger>
+                       <SelectContent>
+                         <SelectItem value="shipper">
+                           <div className="flex items-center gap-2">
+                             <Package className="h-4 w-4 text-blue-700" />
+                             Shipper - I need to move freight
+                           </div>
+                         </SelectItem>
+                         <SelectItem value="driver">
+                           <div className="flex items-center gap-2">
+                             <Truck className="h-4 w-4 text-orange-500" />
+                             Driver - I haul freight
+                           </div>
+                         </SelectItem>
+                       </SelectContent>
+                     </Select>
+                   </div>
 
                   {/* Conditional fields based on user type */}
                   {formData.userType === 'shipper' && (
@@ -374,6 +428,48 @@ const Auth = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Reset Password</CardTitle>
+              <CardDescription>
+                Enter your email address and we'll send you a reset link
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reset-email">Email</Label>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="your@email.com"
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowForgotPassword(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="flex-1">
+                    Send Reset Link
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
