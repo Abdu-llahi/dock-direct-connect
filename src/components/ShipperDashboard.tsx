@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Bell } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import LoadPostingModal from "@/components/LoadPostingModal";
 import ChatModal from "@/components/ChatModal";
 import DocumentModal from "@/components/DocumentModal";
@@ -19,6 +20,7 @@ interface ShipperDashboardProps {
 }
 
 const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
+  const { user } = useAuth();
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
@@ -125,6 +127,7 @@ const ShipperDashboard = ({ onLogout }: ShipperDashboardProps) => {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         userType="shipper"
+        userName={user?.name}
         onLogout={onLogout}
         emergencyMode={emergencyMode}
         onEmergencyToggle={handleEmergencyToggle}

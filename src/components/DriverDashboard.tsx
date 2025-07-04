@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Camera, Home } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import ChatModal from "@/components/ChatModal";
 import DocumentModal from "@/components/DocumentModal";
 import RatingModal from "@/components/RatingModal";
@@ -18,6 +19,7 @@ interface DriverDashboardProps {
 }
 
 const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
+  const { user } = useAuth();
   const [searchRadius, setSearchRadius] = useState("100");
   const [sortBy, setSortBy] = useState("distance");
   const [showChatModal, setShowChatModal] = useState(false);
@@ -167,6 +169,7 @@ const DriverDashboard = ({ onLogout }: DriverDashboardProps) => {
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
         userType="driver"
+        userName={user?.name}
         onLogout={onLogout}
         homeBaseMode={homeBaseMode}
         onHomeBaseToggle={setHomeBaseMode}

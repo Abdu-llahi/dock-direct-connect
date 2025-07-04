@@ -22,7 +22,7 @@ const Auth = () => {
     password: '',
     name: '',
     phone: '',
-    userType: (role as 'shipper' | 'driver') || 'shipper' as 'shipper' | 'driver',
+    userType: (role as 'shipper' | 'driver' | 'admin') || 'shipper' as 'shipper' | 'driver' | 'admin',
     company: '',
     license_number: '',
     mc_dot_number: '',
@@ -40,6 +40,8 @@ const Auth = () => {
       return <Navigate to="/shipper-dashboard" replace />;
     } else if (userRole === 'driver') {
       return <Navigate to="/driver-dashboard" replace />;
+    } else if (userRole === 'admin') {
+      return <Navigate to="/admin-panel" replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -61,8 +63,8 @@ const Auth = () => {
     e.preventDefault();
     
     // Comprehensive input validation
-    if (!formData.email || !formData.password || !formData.name || !formData.userType) {
-      toast.error('Please fill in all required fields');
+    if (!formData.email || !formData.password || !formData.name || !formData.phone || !formData.userType) {
+      toast.error('Please fill in all required fields (Name, Email, Password, Phone Number)');
       return;
     }
 
@@ -86,13 +88,15 @@ const Auth = () => {
       return;
     }
 
-    // Phone number validation (optional but must be valid if provided)
-    if (formData.phone) {
-      const phoneRegex = /^\+?[\d\s\-\(\)\.]{10,}$/;
-      if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
-        toast.error('Please enter a valid phone number');
-        return;
-      }
+    // Phone number validation (required)
+    if (!formData.phone) {
+      toast.error('Phone number is required');
+      return;
+    }
+    const phoneRegex = /^\+?[\d\s\-\(\)\.]{10,}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\s/g, ''))) {
+      toast.error('Please enter a valid phone number');
+      return;
     }
 
     // Driver-specific validations
@@ -148,6 +152,8 @@ const Auth = () => {
         navigate('/shipper-dashboard');
       } else if (formData.userType === 'driver') {
         navigate('/driver-dashboard');
+      } else if (formData.userType === 'admin') {
+        navigate('/admin-panel');
       }
     }
     
@@ -170,7 +176,7 @@ const Auth = () => {
     }
 
     setIsSubmitting(true);
-    const { error } = await signIn(formData.email, formData.password, role as 'shipper' | 'driver');
+    const { error } = await signIn(formData.email, formData.password, role as 'shipper' | 'driver' | 'admin');
     
     if (!error) {
       // Navigate to appropriate dashboard after successful login
@@ -178,6 +184,8 @@ const Auth = () => {
         navigate('/shipper-dashboard');
       } else if (role === 'driver') {
         navigate('/driver-dashboard');
+      } else if (role === 'admin') {
+        navigate('/admin-panel');
       }
     }
     
@@ -313,25 +321,26 @@ const Auth = () => {
                       minLength={8}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="(555) 123-4567 or +1-555-123-4567"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                      pattern="[\d\s\-\(\)\.\+]+"
-                      title="Enter a valid phone number"
-                    />
-                  </div>
+                   <div className="space-y-2">
+                     <Label htmlFor="phone">Phone Number *</Label>
+                     <Input
+                       id="phone"
+                       type="tel"
+                       placeholder="(555) 123-4567 or +1-555-123-4567"
+                       value={formData.phone}
+                       onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                       pattern="[\d\s\-\(\)\.\+]+"
+                       title="Enter a valid phone number"
+                       required
+                     />
+                   </div>
                    <div className="space-y-2">
                      <Label htmlFor="userType">I am a... *</Label>
                      <Select 
                        value={formData.userType} 
-                       onValueChange={(value: 'shipper' | 'driver') => 
-                         setFormData(prev => ({ ...prev, userType: value }))
-                       }
+                        onValueChange={(value: 'shipper' | 'driver' | 'admin') => 
+                          setFormData(prev => ({ ...prev, userType: value }))
+                        }
                        required
                      >
                        <SelectTrigger>
@@ -344,12 +353,18 @@ const Auth = () => {
                              Shipper - I need to move freight
                            </div>
                          </SelectItem>
-                         <SelectItem value="driver">
-                           <div className="flex items-center gap-2">
-                             <Truck className="h-4 w-4 text-orange-500" />
-                             Driver - I haul freight
-                           </div>
-                         </SelectItem>
+                          <SelectItem value="driver">
+                            <div className="flex items-center gap-2">
+                              <Truck className="h-4 w-4 text-orange-500" />
+                              Driver - I haul freight
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="admin">
+                            <div className="flex items-center gap-2">
+                              <span className="h-4 w-4 bg-gray-500 rounded" />
+                              Admin - Platform management
+                            </div>
+                          </SelectItem>
                        </SelectContent>
                      </Select>
                    </div>

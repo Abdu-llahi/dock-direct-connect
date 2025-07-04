@@ -2,10 +2,12 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Truck, Package, Plus, LogOut, Bell, Home } from "lucide-react";
+import { Truck, Package, Plus, LogOut, Bell, Home, Shield } from "lucide-react";
+import Logo from "@/components/ui/logo";
 
 interface DashboardHeaderProps {
-  userType: 'shipper' | 'driver';
+  userType: 'shipper' | 'driver' | 'admin';
+  userName?: string;
   onLogout: () => void;
   emergencyMode?: boolean;
   onEmergencyToggle?: (checked: boolean) => void;
@@ -16,7 +18,8 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader = ({ 
-  userType, 
+  userType,
+  userName,
   onLogout, 
   emergencyMode, 
   onEmergencyToggle, 
@@ -25,22 +28,61 @@ const DashboardHeader = ({
   onPostLoad,
   currentLocation 
 }: DashboardHeaderProps) => {
+  const getRoleIcon = () => {
+    switch (userType) {
+      case 'shipper':
+        return <Package className="h-8 w-8 text-dock-blue" />;
+      case 'driver':
+        return <Truck className="h-8 w-8 text-dock-orange" />;
+      case 'admin':
+        return <Shield className="h-8 w-8 text-gray-600" />;
+      default:
+        return <Package className="h-8 w-8 text-dock-blue" />;
+    }
+  };
+
+  const getRoleColors = () => {
+    switch (userType) {
+      case 'shipper':
+        return 'text-dock-blue';
+      case 'driver':
+        return 'text-dock-orange';
+      case 'admin':
+        return 'text-gray-600';
+      default:
+        return 'text-dock-blue';
+    }
+  };
+
+  const getRoleName = () => {
+    switch (userType) {
+      case 'shipper':
+        return 'Shipper';
+      case 'driver':
+        return 'Driver';
+      case 'admin':
+        return 'Admin';
+      default:
+        return 'User';
+    }
+  };
   return (
     <div className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-2">
-            {userType === 'shipper' ? (
-              <Package className="h-8 w-8 text-dock-blue" />
-            ) : (
-              <Truck className="h-8 w-8 text-dock-orange" />
-            )}
-            <span className={`text-2xl font-bold ${userType === 'shipper' ? 'text-dock-blue' : 'text-dock-orange'}`}>
-              DockDirect
-            </span>
-            <Badge variant="secondary">
-              {userType === 'shipper' ? 'Shipper' : 'Driver'}
-            </Badge>
+          <div className="flex items-center space-x-4">
+            <Logo />
+            <div className="flex items-center space-x-2">
+              {getRoleIcon()}
+              <Badge variant="secondary" className={getRoleColors()}>
+                {getRoleName()}
+              </Badge>
+              {userName && (
+                <span className="text-sm text-gray-600 hidden sm:block">
+                  Welcome, {userName}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             {userType === 'shipper' && emergencyMode !== undefined && onEmergencyToggle && (

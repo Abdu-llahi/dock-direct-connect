@@ -21,7 +21,7 @@ const Index = () => {
   const { user, loading, signOut } = useAuth();
 
   const handleRoleSelect = (role: "shipper" | "driver") => {
-    navigate('/auth');
+    navigate(`/auth/${role}`);
   };
 
   const handleLogout = async () => {
