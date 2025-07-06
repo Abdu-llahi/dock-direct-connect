@@ -2,22 +2,49 @@
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Brain, CreditCard, Truck, Bell } from 'lucide-react';
+import { Brain, CreditCard, Truck, Bell, CheckCircle, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import AnimatedCard from '@/components/ui/animated-card';
+import { supabase } from '@/integrations/supabase/client';
 
 const NextGenSection = () => {
   const [email, setEmail] = useState('');
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  const handleNewsletterSignup = (e: React.FormEvent) => {
+  const handleNewsletterSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      // Mock newsletter signup
-      setIsSubscribed(true);
-      toast.success('Thanks for joining our beta list!');
-      setEmail('');
+    
+    if (!email) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('beta_waitlist')
+        .insert([{ email: email }]);
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          toast.error('Email already registered for beta access');
+        } else {
+          toast.error('Failed to join beta list. Please try again.');
+        }
+      } else {
+        setIsSubscribed(true);
+        toast.success('Thank you for joining our beta list! We\'ll be in touch soon.');
+        setEmail('');
+      }
+    } catch (error) {
+      toast.error('An error occurred. Please try again.');
     }
   };
 
@@ -93,26 +120,31 @@ const NextGenSection = () => {
             </p>
             
             {!isSubscribed ? (
-              <form onSubmit={handleNewsletterSignup} className="flex flex-col sm:flex-row gap-4">
+              <form onSubmit={handleNewsletterSignup} className="space-y-4">
                 <Input
                   type="email"
                   placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="flex-1"
                   required
+                  className="w-full"
                 />
                 <Button 
                   type="submit" 
-                  className="bg-dock-blue hover:bg-blue-800 text-white px-8 py-2 font-semibold"
+                  className="w-full bg-blue-600 hover:bg-blue-700"
                 >
                   Join Beta List
                 </Button>
               </form>
             ) : (
-              <div className="text-center">
-                <div className="text-green-600 text-lg font-semibold">✅ You're on the list!</div>
-                <p className="text-gray-600 mt-2">We'll notify you when beta access is available.</p>
+              <div className="text-center py-4">
+                <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-2" />
+                <p className="text-green-700 font-semibold">
+                  Thank you for joining our beta list!
+                </p>
+                <p className="text-gray-600 text-sm mt-1">
+                  We'll notify you when early access is available.
+                </p>
               </div>
             )}
           </div>

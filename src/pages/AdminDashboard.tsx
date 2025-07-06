@@ -1,25 +1,37 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Users, Truck, Package, DollarSign, Settings, LogOut, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Shield, Users, Truck, Package, DollarSign, Settings, LogOut, AlertTriangle, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import AdminPanel from './AdminPanel';
 
 const AdminDashboard = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(
-    localStorage.getItem('admin_authenticated') === 'true'
-  );
+  const { user, loading, signOut } = useAuth();
 
-  if (!isAuthenticated) {
+  // Redirect if not authenticated or not admin
+  if (!loading && (!user || (user.role !== 'admin' && user.user_type !== 'admin'))) {
     return <Navigate to="/admin-login" replace />;
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin_authenticated');
-    setIsAuthenticated(false);
-    toast.success('Logged out successfully');
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    await signOut();
   };
 
   // Mock admin stats - replace with real data
@@ -33,33 +45,26 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Admin Header */}
-      <div className="bg-slate-800/50 backdrop-blur border-b border-slate-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                <Shield className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
-                <p className="text-sm text-slate-400">DockDirect Platform Management</p>
-              </div>
-            </div>
-            <Button 
-              variant="ghost" 
-              onClick={handleLogout}
-              className="text-slate-300 hover:text-white hover:bg-slate-700"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
+      <DashboardHeader
+        userType="admin"
+        userName={user?.name}
+        onLogout={handleLogout}
+      />
 
       {/* Dashboard Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="bg-slate-800/50 border-slate-700">
+            <TabsTrigger value="overview" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              Dashboard Overview
+            </TabsTrigger>
+            <TabsTrigger value="users" className="text-slate-300 data-[state=active]:bg-slate-700 data-[state=active]:text-white">
+              <UserPlus className="h-4 w-4 mr-2" />
+              User Management
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview">
         {/* Alert Section */}
         <Card className="mb-8 border-amber-500/20 bg-amber-500/10">
           <CardContent className="p-4">
@@ -199,6 +204,12 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <AdminPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

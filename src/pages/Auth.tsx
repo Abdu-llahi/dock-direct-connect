@@ -41,7 +41,7 @@ const Auth = () => {
     } else if (userRole === 'driver') {
       return <Navigate to="/driver-dashboard" replace />;
     } else if (userRole === 'admin') {
-      return <Navigate to="/admin-panel" replace />;
+      return <Navigate to="/admin-dashboard" replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -153,7 +153,7 @@ const Auth = () => {
       } else if (formData.userType === 'driver') {
         navigate('/driver-dashboard');
       } else if (formData.userType === 'admin') {
-        navigate('/admin-panel');
+        navigate('/admin-dashboard');
       }
     }
     
@@ -185,7 +185,7 @@ const Auth = () => {
       } else if (role === 'driver') {
         navigate('/driver-dashboard');
       } else if (role === 'admin') {
-        navigate('/admin-panel');
+        navigate('/admin-dashboard');
       }
     }
     
@@ -232,8 +232,18 @@ const Auth = () => {
               Welcome to DockDirect
             </CardTitle>
             <CardDescription>
-              Sign in to your account or create a new one
+              {role === 'driver' ? 'Driver Portal - Sign in or join as a driver to find loads directly from shippers' :
+               role === 'shipper' ? 'Shipper Portal - Sign in or join as a shipper to connect directly with drivers' :
+               role === 'admin' ? 'Admin Portal - Secure platform management access' :
+               'Sign in to your account or create a new one'}
             </CardDescription>
+            {role && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm font-medium text-blue-800">
+                  You're accessing the <span className="capitalize font-bold">{role}</span> portal
+                </p>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">

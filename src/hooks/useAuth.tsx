@@ -240,12 +240,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (!userData || userData.role !== requiredRole) {
             await supabase.auth.signOut();
             const roleNames = { shipper: 'Shipper', driver: 'Driver', admin: 'Admin' };
-            toast.error(`This page is only for ${roleNames[requiredRole]} accounts. Please use the correct login page.`);
+            toast.error(`This page is only for ${roleNames[requiredRole]} accounts. Please use the correct login page or go to the home page to select the right portal.`);
             return { error: new Error('Invalid role') };
           }
         }
         
-        toast.success('Welcome back!');
+        const roleNames = { shipper: 'Shipper', driver: 'Driver', admin: 'Admin' };
+        toast.success(`Welcome back, ${roleNames[requiredRole] || 'User'}!`);
       }
 
       return { error: null };

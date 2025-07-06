@@ -39,7 +39,7 @@ const PricingModal = ({ isOpen, onClose, userType, currentPlan = 'free' }: Prici
     {
       id: 'premium',
       name: 'Premium',
-      price: annualBilling ? 107.5 : 129,
+      price: annualBilling ? 1290 : 129,
       description: 'Priority features with reduced fees',
       features: [
         'Priority load listing',
@@ -74,7 +74,7 @@ const PricingModal = ({ isOpen, onClose, userType, currentPlan = 'free' }: Prici
     {
       id: 'premium',
       name: 'Premium',
-      price: annualBilling ? 19 : 24,
+      price: annualBilling ? 1290 : 129,
       description: 'Priority access and advanced features',
       features: [
         'Priority load alerts',

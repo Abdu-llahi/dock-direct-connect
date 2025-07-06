@@ -54,7 +54,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
-        userType="shipper"
+        userType="admin"
         onLogout={onLogout}
       />
 
@@ -66,10 +66,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
               <p className="text-gray-600">Monitor platform performance and revenue metrics</p>
             </div>
             <Button 
-              onClick={() => window.open('/admin-panel', '_blank')}
+              onClick={() => window.location.href = '/admin-dashboard'}
               className="bg-red-600 hover:bg-red-700"
             >
-              User Management
+              Switch to Full Dashboard
             </Button>
           </div>
         </div>
