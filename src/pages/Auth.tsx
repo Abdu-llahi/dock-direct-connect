@@ -363,12 +363,12 @@ const Auth = () => {
                              Shipper - I need to move freight
                            </div>
                          </SelectItem>
-                          <SelectItem value="driver">
-                            <div className="flex items-center gap-2">
-                              <Truck className="h-4 w-4 text-orange-500" />
-                              Driver - I haul freight
-                            </div>
-                          </SelectItem>
+                           <SelectItem value="driver">
+                             <div className="flex items-center gap-2">
+                               <Truck className="h-4 w-4 text-dock-orange" />
+                               Driver - I haul freight
+                             </div>
+                           </SelectItem>
                           <SelectItem value="admin">
                             <div className="flex items-center gap-2">
                               <span className="h-4 w-4 bg-gray-500 rounded" />
