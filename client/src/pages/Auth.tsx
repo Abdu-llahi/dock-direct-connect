@@ -35,7 +35,7 @@ const Auth = () => {
 
   // Redirect if already authenticated - send to appropriate dashboard
   if (user && !loading) {
-    const userRole = user.role || user.user_type;
+    const userRole = user.role;
     if (userRole === 'shipper') {
       return <Navigate to="/shipper-dashboard" replace />;
     } else if (userRole === 'driver') {

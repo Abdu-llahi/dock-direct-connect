@@ -6,7 +6,7 @@ import { Brain, CreditCard, Truck, Bell, CheckCircle, Mail } from 'lucide-react'
 import { useState } from 'react';
 import { toast } from 'sonner';
 import AnimatedCard from '@/components/ui/animated-card';
-import { supabase } from '@/integrations/supabase/client';
+// Beta waitlist will use server-side API
 
 const NextGenSection = () => {
   const [email, setEmail] = useState('');
@@ -28,12 +28,18 @@ const NextGenSection = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('beta_waitlist')
-        .insert([{ email: email }]);
+      const response = await fetch('/api/beta-waitlist', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 409) {
           toast.error('Email already registered for beta access');
         } else {
           toast.error('Failed to join beta list. Please try again.');

@@ -15,7 +15,7 @@ const AdminDashboard = () => {
   const { user, loading, signOut } = useAuth();
 
   // Redirect if not authenticated or not admin
-  if (!loading && (!user || (user.role !== 'admin' && user.user_type !== 'admin'))) {
+  if (!loading && (!user || user.role !== 'admin')) {
     return <Navigate to="/admin-login" replace />;
   }
 

@@ -28,7 +28,7 @@ const Index = () => {
     await signOut();
   };
 
-  console.log('Index render - Loading:', loading, 'User:', user?.id, 'Role:', user?.role || user?.user_type);
+  console.log('Index render - Loading:', loading, 'User:', user?.id, 'Role:', user?.role);
 
   // Show loading state
   if (loading) {
@@ -44,7 +44,7 @@ const Index = () => {
 
   // Show appropriate dashboard if logged in and has role
   if (user) {
-    const userRole = user.role || user.user_type;
+    const userRole = user.role;
     console.log('User detected with role:', userRole);
     
     if (userRole === "shipper") {
@@ -71,7 +71,7 @@ const Index = () => {
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600">
                     Welcome, {user.name || user.email}
-                    {!user.role && !user.user_type && (
+                    {!user.role && (
                       <span className="text-red-600 ml-2 font-medium">
                         (Account setup incomplete - please contact support)
                       </span>

@@ -20,7 +20,7 @@ const AdminLogin = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Redirect if already authenticated as admin
-  if (user && (user.role === 'admin' || user.user_type === 'admin')) {
+  if (user && user.role === 'admin') {
     return <Navigate to="/admin-dashboard" replace />;
   }
 
