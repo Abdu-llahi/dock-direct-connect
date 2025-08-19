@@ -1,23 +1,51 @@
 import { Express, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from './db';
-import { authenticateToken, requireRole, generateTokens, hashPassword, verifyPassword } from './utils/auth';
+import { 
+  authenticateToken, 
+  requireRole, 
+  generateTokens, 
+  hashPassword, 
+  verifyPassword,
+  generateMFACode,
+  verifyMFACode,
+  generatePasswordResetToken,
+  hashPasswordResetToken,
+  verifyPasswordResetToken
+} from './utils/auth';
 import { logger } from './utils/logger';
-import bcrypt from 'bcrypt';
 
 // Validation schemas
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   name: z.string().min(2),
-  role: z.enum(['shipper', 'driver', 'admin']),
+  role: z.enum(['shipper', 'driver', 'admin', 'warehouse']),
   phone: z.string().optional(),
   companyName: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
 });
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+});
+
+const mfaSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6),
+});
+
+const passwordResetRequestSchema = z.object({
+  email: z.string().email(),
+});
+
+const passwordResetSchema = z.object({
+  token: z.string(),
+  newPassword: z.string().min(8),
 });
 
 const createLoadSchema = z.object({
@@ -68,6 +96,15 @@ const createContractSchema = z.object({
   rateCents: z.number().positive(),
 });
 
+const createDocumentSchema = z.object({
+  loadId: z.string().uuid(),
+  type: z.enum(['rate_confirm', 'bol', 'invoice', 'contract']),
+  title: z.string(),
+  content: z.string().optional(),
+  fileUrl: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+});
+
 export function registerRoutes(app: Express) {
   // Health check
   app.get('/healthz', (req: Request, res: Response) => {
@@ -104,25 +141,23 @@ export function registerRoutes(app: Express) {
           role: validatedData.role,
           phone: validatedData.phone,
           companyName: validatedData.companyName,
+          status: 'pending', // Requires admin approval
           profile: {
             create: {
               verificationStatus: 'pending',
               rating: 0,
               totalLoads: 0,
-              totalRevenue: 0
+              totalRevenue: 0,
+              address: validatedData.address,
+              city: validatedData.city,
+              state: validatedData.state,
+              zipCode: validatedData.zipCode,
             }
           }
         },
         include: {
           profile: true
         }
-      });
-
-      // Generate tokens
-      const tokens = await generateTokens({
-        id: user.id,
-        email: user.email,
-        role: user.role
       });
 
       // Log the registration
@@ -139,15 +174,15 @@ export function registerRoutes(app: Express) {
       });
 
       res.status(201).json({
-        message: 'User registered successfully',
+        message: 'User registered successfully. Awaiting admin approval.',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
+          status: user.status,
           profile: user.profile
-        },
-        tokens
+        }
       });
     } catch (error) {
       logger.error('Registration error:', error);
@@ -172,11 +207,90 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
+      // Check if account is approved
+      if (user.status !== 'active') {
+        return res.status(401).json({ 
+          error: 'Account not approved', 
+          status: user.status,
+          requiresApproval: user.status === 'pending'
+        });
+      }
+
       // Verify password
       const isValidPassword = await verifyPassword(validatedData.password, user.passwordHash);
       if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
+
+      // Generate MFA code for additional security
+      const mfaCode = generateMFACode();
+      
+      // Store MFA code temporarily (in production, use Redis or similar)
+      // For now, we'll store it in the user profile temporarily
+      await prisma.userProfile.update({
+        where: { userId: user.id },
+        data: { 
+          mfaCode,
+          mfaCodeExpiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+        }
+      });
+
+      // Log the login attempt
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'LOGIN_ATTEMPTED',
+          tableName: 'users',
+          recordId: user.id,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.json({
+        message: 'MFA code sent',
+        requiresMFA: true,
+        userId: user.id
+      });
+    } catch (error) {
+      logger.error('Login error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/mfa', async (req: Request, res: Response) => {
+    try {
+      const validatedData = mfaSchema.parse(req.body);
+
+      // Find user
+      const user = await prisma.user.findUnique({
+        where: { email: validatedData.email },
+        include: { profile: true }
+      });
+
+      if (!user || !user.profile) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Check if MFA code is valid and not expired
+      if (!user.profile.mfaCode || 
+          !user.profile.mfaCodeExpiresAt || 
+          new Date() > user.profile.mfaCodeExpiresAt ||
+          !verifyMFACode(validatedData.code, user.profile.mfaCode)) {
+        return res.status(401).json({ error: 'Invalid or expired MFA code' });
+      }
+
+      // Clear MFA code
+      await prisma.userProfile.update({
+        where: { userId: user.id },
+        data: { 
+          mfaCode: null,
+          mfaCodeExpiresAt: null
+        }
+      });
 
       // Generate tokens
       const tokens = await generateTokens({
@@ -185,7 +299,7 @@ export function registerRoutes(app: Express) {
         role: user.role
       });
 
-      // Log the login
+      // Log the successful login
       await prisma.auditLog.create({
         data: {
           userId: user.id,
@@ -209,10 +323,218 @@ export function registerRoutes(app: Express) {
         tokens
       });
     } catch (error) {
-      logger.error('Login error:', error);
+      logger.error('MFA error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Validation error', details: error.errors });
       }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/forgot-password', async (req: Request, res: Response) => {
+    try {
+      const validatedData = passwordResetRequestSchema.parse(req.body);
+
+      const user = await prisma.user.findUnique({
+        where: { email: validatedData.email }
+      });
+
+      if (!user) {
+        // Don't reveal if user exists
+        return res.json({ message: 'If an account exists, a password reset email has been sent.' });
+      }
+
+      // Generate reset token
+      const resetToken = generatePasswordResetToken();
+      const hashedToken = await hashPasswordResetToken(resetToken);
+
+      // Store reset token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: hashedToken,
+          passwordResetExpiresAt: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+        }
+      });
+
+      // Log the password reset request
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'PASSWORD_RESET_REQUESTED',
+          tableName: 'users',
+          recordId: user.id,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      // In production, send email here
+      res.json({ message: 'Password reset email sent' });
+    } catch (error) {
+      logger.error('Forgot password error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+    try {
+      const validatedData = passwordResetSchema.parse(req.body);
+
+      // Find user with valid reset token
+      const user = await prisma.user.findFirst({
+        where: {
+          passwordResetToken: { not: null },
+          passwordResetExpiresAt: { gt: new Date() }
+        }
+      });
+
+      if (!user) {
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
+      }
+
+      // Verify token
+      const isValidToken = await verifyPasswordResetToken(validatedData.token, user.passwordResetToken!);
+      if (!isValidToken) {
+        return res.status(400).json({ error: 'Invalid reset token' });
+      }
+
+      // Hash new password
+      const hashedPassword = await hashPassword(validatedData.newPassword);
+
+      // Update password and clear reset token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash: hashedPassword,
+          passwordResetToken: null,
+          passwordResetExpiresAt: null
+        }
+      });
+
+      // Log the password reset
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'PASSWORD_RESET',
+          tableName: 'users',
+          recordId: user.id,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.json({ message: 'Password reset successfully' });
+    } catch (error) {
+      logger.error('Reset password error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Account approval routes (admin only)
+  app.post('/api/admin/users/:id/approve', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user!.id;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (user.status === 'active') {
+        return res.status(400).json({ error: 'User is already approved' });
+      }
+
+      // Update user status
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { 
+          status: 'active',
+          approvedAt: new Date(),
+          approvedBy: adminId
+        },
+        include: { profile: true }
+      });
+
+      // Log the approval
+      await prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'USER_APPROVED',
+          tableName: 'users',
+          recordId: userId,
+          oldValues: { status: user.status },
+          newValues: { status: 'active' },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.json({
+        message: 'User approved successfully',
+        user: updatedUser
+      });
+    } catch (error) {
+      logger.error('User approval error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/admin/users/:id/reject', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const userId = req.params.id;
+      const adminId = req.user!.id;
+      const { reason } = req.body;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Update user status
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { 
+          status: 'rejected',
+          rejectedAt: new Date(),
+          rejectedBy: adminId,
+          rejectionReason: reason
+        }
+      });
+
+      // Log the rejection
+      await prisma.auditLog.create({
+        data: {
+          userId: adminId,
+          action: 'USER_REJECTED',
+          tableName: 'users',
+          recordId: userId,
+          oldValues: { status: user.status },
+          newValues: { status: 'rejected', rejectionReason: reason },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.json({
+        message: 'User rejected successfully',
+        user: updatedUser
+      });
+    } catch (error) {
+      logger.error('User rejection error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
@@ -758,6 +1080,144 @@ export function registerRoutes(app: Express) {
       });
     } catch (error) {
       logger.error('Sign contract error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Documents routes
+  app.post('/api/documents', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const validatedData = createDocumentSchema.parse(req.body);
+      const userId = req.user!.id;
+
+      // Check if user has access to the load
+      const load = await prisma.load.findUnique({
+        where: { id: validatedData.loadId }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
+      }
+
+      if (load.shipperId !== userId && load.driverId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const document = await prisma.document.create({
+        data: {
+          loadId: validatedData.loadId,
+          type: validatedData.type,
+          title: validatedData.title,
+          content: validatedData.content,
+          fileUrl: validatedData.fileUrl,
+          metadata: validatedData.metadata,
+          createdBy: userId,
+        },
+        include: {
+          load: true,
+          createdByUser: {
+            include: { profile: true }
+          }
+        }
+      });
+
+      // Log the document creation
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'DOCUMENT_CREATED',
+          tableName: 'documents',
+          recordId: document.id,
+          newValues: { title: document.title, type: document.type },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.status(201).json({
+        message: 'Document created successfully',
+        document
+      });
+    } catch (error) {
+      logger.error('Create document error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/documents/load/:loadId', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const loadId = req.params.loadId;
+      const userId = req.user!.id;
+
+      // Check if user has access to the load
+      const load = await prisma.load.findUnique({
+        where: { id: loadId }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
+      }
+
+      if (load.shipperId !== userId && load.driverId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const documents = await prisma.document.findMany({
+        where: { loadId },
+        include: {
+          createdByUser: {
+            include: { profile: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      res.json({ documents });
+    } catch (error) {
+      logger.error('Get documents error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Admin routes
+  app.get('/api/admin/users', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const users = await prisma.user.findMany({
+        include: { profile: true },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      res.json({ users });
+    } catch (error) {
+      logger.error('Get users error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/admin/stats', authenticateToken, requireRole(['admin']), async (req: Request, res: Response) => {
+    try {
+      const [totalUsers, pendingUsers, totalLoads, totalBids, totalContracts] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { status: 'pending' } }),
+        prisma.load.count(),
+        prisma.bid.count(),
+        prisma.contract.count()
+      ]);
+
+      res.json({
+        stats: {
+          totalUsers,
+          pendingUsers,
+          totalLoads,
+          totalBids,
+          totalContracts
+        }
+      });
+    } catch (error) {
+      logger.error('Get admin stats error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

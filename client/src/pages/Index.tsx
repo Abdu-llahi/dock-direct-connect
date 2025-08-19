@@ -1,557 +1,437 @@
 
-import { useState, lazy, Suspense, useEffect } from "react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
-  LogOut, 
-  Play, 
-  Package, 
-  TrendingUp, 
-  FileText, 
-  Shield, 
   Truck, 
-  MapPin, 
-  Clock, 
+  Package, 
+  Shield, 
+  Building,
+  ArrowRight, 
+  CheckCircle, 
+  Star, 
+  Users, 
+  TrendingUp,
+  MapPin,
+  Clock,
   DollarSign,
-  ArrowRight,
-  CheckCircle,
-  Star,
-  Users,
   Zap,
   Globe,
+  Lock,
+  Smartphone,
+  BarChart3,
+  Target,
   Award,
-  MessageCircle,
-  Bell,
-  Search,
-  Menu,
-  X
+  Headphones,
+  FileText,
+  ShieldCheck
 } from "lucide-react";
-import { useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import Logo from "@/components/ui/logo";
+import HeroSection from "@/components/homepage/HeroSection";
+import FeaturesSection from "@/components/homepage/FeaturesSection";
+import StatsSection from "@/components/homepage/StatsSection";
+import TestimonialsSection from "@/components/homepage/TestimonialsSection";
+import NextGenSection from "@/components/homepage/NextGenSection";
 import Footer from "@/components/Footer";
-import AnimatedCard from "@/components/ui/animated-card";
-
-import ShipperDashboard from "@/pages/ShipperDashboard";
-import DriverDashboard from "@/pages/DriverDashboard";
-
-const AdminDashboard = lazy(() => import("@/components/AdminDashboard"));
+import Logo from "@/components/ui/logo";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState(0);
-
-  // Intersection Observer for scroll animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fade-in');
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    document.querySelectorAll('.scroll-animate').forEach((el) => {
-      observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   const handleRoleSelect = (role: "shipper" | "driver") => {
-    navigate(`/auth/${role}`);
+    if (user) {
+      // User is already logged in, redirect to dashboard
+      const dashboardPath = role === 'shipper' ? '/dashboard/shipper' : '/dashboard/driver';
+      navigate(dashboardPath);
+    } else {
+      // User needs to authenticate, redirect to auth page
+      navigate(`/auth/${role}`);
+    }
   };
 
   const handleLogout = async () => {
     await signOut();
+    navigate('/');
   };
 
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-orange-50">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-6"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-orange-200 border-t-orange-600 animate-spin" style={{ animationDelay: '-0.5s' }}></div>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dock Direct Connect</h2>
-          <p className="text-gray-600">Revolutionizing logistics...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleGetStarted = () => {
+    navigate('/auth/shipper');
+  };
 
-  // Show appropriate dashboard if logged in and has role
-  if (user) {
-    const userRole = user.role;
-    
-    if (userRole === "shipper") {
-      return <ShipperDashboard onLogout={handleLogout} />;
-    }
-    if (userRole === "driver") {
-      return <DriverDashboard onLogout={handleLogout} />;
-    }
-    if (userRole === "admin") {
-      return <Navigate to="/admin-dashboard" replace />;
-    }
-  }
+  const handleLearnMore = () => {
+    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+  };
 
-  // Show landing page for non-authenticated users or users without roles
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50 overflow-x-hidden">
-      {/* Navbar */}
-      <nav className="bg-white/95 backdrop-blur-xl shadow-sm border-b border-gray-100 sticky top-0 z-50">
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <Logo />
-            
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#solutions" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Solutions</a>
-              <a href="#resources" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Resources</a>
-              <a href="#company" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Company</a>
-              <a href="#support" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Support</a>
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <Logo className="h-8 w-8 mr-3" />
+              <span className="text-xl font-bold text-gray-900">Dock Direct Connect</span>
             </div>
 
-            <div className="flex items-center space-x-4">
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-8">
+              <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Features
+              </a>
+              <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">
+                How It Works
+              </a>
+              <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors">
+                Pricing
+              </a>
+              <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors">
+                About
+              </a>
+            </div>
+
+            {/* Auth Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
               {user ? (
                 <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-600 font-medium">
-                    Welcome, {user.name || user.email}
+                  <span className="text-sm text-gray-600">
+                    Welcome, {user.name}
                   </span>
-                  <Button 
-                    variant="ghost" 
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+                  <Button
+                    onClick={() => navigate(`/dashboard/${user.role}`)}
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
-                    <LogOut className="h-4 w-4" />
+                    Dashboard
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleLogout}
+                  >
                     Sign Out
                   </Button>
                 </div>
               ) : (
-                <div className="hidden sm:flex space-x-3">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleRoleSelect("shipper")} 
-                    className="hover:bg-blue-50 hover:text-blue-700 font-medium transition-all duration-200"
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate('/auth/shipper')}
                   >
-                    Shipper Login
+                    Sign In
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => handleRoleSelect("driver")} 
-                    className="hover:bg-orange-50 hover:text-orange-700 font-medium transition-all duration-200"
-                  >
-                    Driver Login
-                  </Button>
-                  <Button 
-                    onClick={() => navigate('/demo')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200"
+                  <Button
+                    onClick={handleGetStarted}
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     Get Started
                   </Button>
-                </div>
+                </>
               )}
-              
-              {/* Mobile menu button */}
+            </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="text-gray-600 hover:text-gray-900"
               >
-                {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 py-4">
-            <div className="px-4 space-y-3">
-              <a href="#solutions" className="block py-2 text-gray-700 hover:text-blue-600">Solutions</a>
-              <a href="#resources" className="block py-2 text-gray-700 hover:text-blue-600">Resources</a>
-              <a href="#company" className="block py-2 text-gray-700 hover:text-blue-600">Company</a>
-              <a href="#support" className="block py-2 text-gray-700 hover:text-blue-600">Support</a>
-              <div className="pt-4 space-y-2">
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleRoleSelect("shipper")} 
-                  className="w-full justify-start"
-                >
-                  Shipper Login
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  onClick={() => handleRoleSelect("driver")} 
-                  className="w-full justify-start"
-                >
-                  Driver Login
-                </Button>
-                <Button 
-                  onClick={() => navigate('/demo')}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  Get Started
-                </Button>
+          {/* Mobile Navigation */}
+          {isMenuOpen && (
+            <div className="md:hidden py-4 border-t">
+              <div className="flex flex-col space-y-4">
+                <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  Features
+                </a>
+                <a href="#how-it-works" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  How It Works
+                </a>
+                <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  Pricing
+                </a>
+                <a href="#about" className="text-gray-600 hover:text-gray-900 transition-colors">
+                  About
+                </a>
+                {user ? (
+                  <div className="pt-4 border-t">
+                    <span className="block text-sm text-gray-600 mb-2">
+                      Welcome, {user.name}
+                    </span>
+                    <Button
+                      onClick={() => navigate(`/dashboard/${user.role}`)}
+                      className="w-full bg-blue-600 hover:bg-blue-700 mb-2"
+                    >
+                      Dashboard
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleLogout}
+                      className="w-full"
+                    >
+                      Sign Out
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="pt-4 border-t space-y-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate('/auth/shipper')}
+                      className="w-full"
+                    >
+                      Sign In
+                    </Button>
+                    <Button
+                      onClick={handleGetStarted}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Get Started
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 lg:py-32">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-orange-600/10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="scroll-animate opacity-0 transform translate-y-8">
-              <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-gray-900 mb-8 leading-tight">
-                Haul with us.
-              </h1>
-              <p className="text-xl md:text-2xl lg:text-3xl text-gray-600 mb-12 max-w-5xl mx-auto leading-relaxed">
-                Harness the industry-leading combination of <span className="text-blue-600 font-semibold">technology</span>, 
-                <span className="text-orange-600 font-semibold"> partnership</span>, and <span className="text-green-600 font-semibold">capacity</span> 
-                to drive big results.
+      <HeroSection onRoleSelect={handleRoleSelect} />
+
+      {/* Trust Indicators */}
+      <section className="py-12 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900 mb-4">
+              Trusted by Industry Leaders
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Join thousands of shippers and drivers who trust Dock Direct Connect for their freight needs
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Users className="h-8 w-8 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">10,000+</p>
+              <p className="text-xs text-gray-600">Active Users</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Truck className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">50,000+</p>
+              <p className="text-xs text-gray-600">Loads Moved</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Star className="h-8 w-8 text-orange-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">4.9/5</p>
+              <p className="text-xs text-gray-600">User Rating</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <TrendingUp className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-900">99.9%</p>
+              <p className="text-xs text-gray-600">Uptime</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section id="how-it-works" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              How Dock Direct Connect Works
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Our streamlined process connects shippers directly with qualified drivers, eliminating middlemen and reducing costs
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl font-bold text-blue-600">1</span>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Post Your Load</h3>
+              <p className="text-gray-600">
+                Shippers post loads with detailed specifications, pickup/delivery locations, and competitive rates
               </p>
             </div>
             
-            <div className="scroll-animate opacity-0 transform translate-y-8" style={{ animationDelay: '0.2s' }}>
-              <div className="flex flex-col sm:flex-row gap-6 justify-center mb-16">
-                <Button 
-                  size="lg" 
-                  onClick={() => navigate('/demo')}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-12 py-4 text-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                >
-                  <Play className="mr-3 h-6 w-6" />
-                  Open Live Demo
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="lg"
-                  className="border-2 border-gray-300 hover:border-blue-600 hover:text-blue-600 px-12 py-4 text-xl font-semibold transition-all duration-300 transform hover:scale-105"
-                >
-                  <MessageCircle className="mr-3 h-6 w-6" />
-                  Talk to Us
-                </Button>
+            <div className="text-center">
+              <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl font-bold text-orange-600">2</span>
               </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Get Matched</h3>
+              <p className="text-gray-600">
+                Our AI-powered system matches loads with qualified drivers based on location, equipment, and availability
+              </p>
             </div>
-
-            {/* Live Stats */}
-            <div className="scroll-animate opacity-0 transform translate-y-8" style={{ animationDelay: '0.4s' }}>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-                <div className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
-                  <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">2,847</div>
-                  <div className="text-gray-600 font-medium">Active Drivers</div>
-                </div>
-                <div className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
-                  <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">98.2%</div>
-                  <div className="text-gray-600 font-medium">On-Time Rate</div>
-                </div>
-                <div className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
-                  <div className="text-3xl md:text-4xl font-bold text-orange-600 mb-2">23min</div>
-                  <div className="text-gray-600 font-medium">Avg Pickup</div>
-                </div>
-                <div className="text-center p-6 bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg">
-                  <div className="text-3xl md:text-4xl font-bold text-purple-600 mb-2">$2.4M</div>
-                  <div className="text-gray-600 font-medium">Monthly Volume</div>
-                </div>
+            
+            <div className="text-center">
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-2xl font-bold text-green-600">3</span>
               </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-3">Ship & Track</h3>
+              <p className="text-gray-600">
+                Real-time tracking, instant payments, and seamless communication throughout the entire journey
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Solutions Section */}
-      <section id="solutions" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <div className="scroll-animate opacity-0 transform translate-y-8">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Solutions for Every Player
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Whether you're a shipper looking for capacity or a driver seeking loads, 
-                we have the tools to revolutionize your logistics.
-              </p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Shipper Solution */}
-            <div className="scroll-animate opacity-0 transform translate-x-8">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-8 rounded-3xl">
-                <div className="flex items-center mb-6">
-                  <div className="bg-blue-600 p-3 rounded-2xl mr-4">
-                    <Package className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">For Shippers</h3>
-                    <p className="text-blue-600 font-medium">Instant Capacity Access</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">AI-powered load optimization</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Real-time driver matching</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Automated contract generation</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Live tracking & analytics</span>
-                  </div>
-                </div>
-                
-                <Button 
-                  onClick={() => handleRoleSelect("shipper")}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3"
-                >
-                  Get Started as Shipper
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-gray-50">
+        <FeaturesSection />
+      </section>
 
-            {/* Driver Solution */}
-            <div className="scroll-animate opacity-0 transform -translate-x-8">
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-8 rounded-3xl">
-                <div className="flex items-center mb-6">
-                  <div className="bg-orange-600 p-3 rounded-2xl mr-4">
-                    <Truck className="h-8 w-8 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-gray-900">For Drivers</h3>
-                    <p className="text-orange-600 font-medium">More Loads, Better Rates</p>
-                  </div>
+      {/* Key Benefits */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+              Why Choose Dock Direct Connect?
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Experience the future of freight with our innovative platform designed for efficiency and transparency
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                  <Zap className="h-6 w-6 text-blue-600" />
                 </div>
-                
-                <div className="space-y-4 mb-8">
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Access to premium loads</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Competitive bidding system</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Instant payment processing</span>
-                  </div>
-                  <div className="flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-600 mr-3" />
-                    <span className="text-gray-700">Route optimization tools</span>
-                  </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Matching</h3>
+                <p className="text-gray-600">
+                  AI-powered algorithms instantly match loads with the best available drivers
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <DollarSign className="h-6 w-6 text-green-600" />
                 </div>
-                
-                <Button 
-                  onClick={() => handleRoleSelect("driver")}
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-3"
-                >
-                  Get Started as Driver
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Cost Savings</h3>
+                <p className="text-gray-600">
+                  Eliminate broker fees and reduce transportation costs by up to 30%
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                  <Globe className="h-6 w-6 text-purple-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Global Network</h3>
+                <p className="text-gray-600">
+                  Access to a nationwide network of verified drivers and shippers
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                  <Lock className="h-6 w-6 text-orange-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Platform</h3>
+                <p className="text-gray-600">
+                  Enterprise-grade security with encrypted communications and verified users
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mb-4">
+                  <Smartphone className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Mobile First</h3>
+                <p className="text-gray-600">
+                  Full-featured mobile app for drivers to manage loads on the go
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
+                  <BarChart3 className="h-6 w-6 text-indigo-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics Dashboard</h3>
+                <p className="text-gray-600">
+                  Comprehensive insights and reporting for better business decisions
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-24 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <div className="scroll-animate opacity-0 transform translate-y-8">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Revolutionary Technology
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                From shipment posting to final delivery, we handle the entire process with 
-                AI-powered efficiency and enterprise-grade security.
-              </p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <AnimatedCard className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105" delay={100}>
-              <div className="bg-blue-100 p-4 rounded-2xl mb-6 w-fit">
-                <Package className="h-8 w-8 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-4">Smart Shipment Posting</h3>
-              <p className="text-gray-600 mb-6">AI-optimized load descriptions with automatic pricing suggestions and real-time market analysis.</p>
-              <div className="flex items-center text-blue-600 font-semibold">
-                Learn More <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
-            </AnimatedCard>
-
-            <AnimatedCard className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105" delay={200}>
-              <div className="bg-green-100 p-4 rounded-2xl mb-6 w-fit">
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-4">Live Bidding System</h3>
-              <p className="text-gray-600 mb-6">Real-time driver bidding with instant notifications and automated acceptance workflows.</p>
-              <div className="flex items-center text-green-600 font-semibold">
-                Learn More <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
-            </AnimatedCard>
-
-            <AnimatedCard className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105" delay={300}>
-              <div className="bg-purple-100 p-4 rounded-2xl mb-6 w-fit">
-                <FileText className="h-8 w-8 text-purple-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-4">Smart Contracts</h3>
-              <p className="text-gray-600 mb-6">Automated contract generation with legal compliance and instant digital signatures.</p>
-              <div className="flex items-center text-purple-600 font-semibold">
-                Learn More <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
-            </AnimatedCard>
-
-            <AnimatedCard className="bg-white p-8 rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105" delay={400}>
-              <div className="bg-orange-100 p-4 rounded-2xl mb-6 w-fit">
-                <Shield className="h-8 w-8 text-orange-600" />
-              </div>
-              <h3 className="text-xl font-bold mb-4">Compliance Automation</h3>
-              <p className="text-gray-600 mb-6">Built-in regulatory compliance, insurance verification, and safety monitoring.</p>
-              <div className="flex items-center text-orange-600 font-semibold">
-                Learn More <ArrowRight className="ml-2 h-4 w-4" />
-              </div>
-            </AnimatedCard>
-          </div>
-        </div>
+      {/* Stats Section */}
+      <section className="py-20 bg-blue-600">
+        <StatsSection />
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
-            <div className="scroll-animate opacity-0 transform translate-y-8">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Trusted by Industry Leaders
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                See what shippers and drivers are saying about Dock Direct Connect.
-              </p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="scroll-animate opacity-0 transform translate-y-8" style={{ animationDelay: '0.2s' }}>
-              <div className="bg-gray-50 p-8 rounded-3xl">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-6 italic">
-                  "Dock Direct Connect revolutionized our logistics. We've reduced our shipping costs by 23% and improved delivery times significantly."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-bold">JD</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">John Davis</div>
-                    <div className="text-gray-600">Logistics Manager, TechCorp</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Testimonials */}
+      <section className="py-20 bg-white">
+        <TestimonialsSection />
+      </section>
 
-            <div className="scroll-animate opacity-0 transform translate-y-8" style={{ animationDelay: '0.4s' }}>
-              <div className="bg-gray-50 p-8 rounded-3xl">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-6 italic">
-                  "As an owner-operator, this platform has been a game-changer. I'm getting better rates and more consistent loads than ever before."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-bold">SM</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">Sarah Martinez</div>
-                    <div className="text-gray-600">Owner-Operator</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="scroll-animate opacity-0 transform translate-y-8" style={{ animationDelay: '0.6s' }}>
-              <div className="bg-gray-50 p-8 rounded-3xl">
-                <div className="flex items-center mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-700 mb-6 italic">
-                  "The real-time tracking and automated contracts save us hours every week. This is exactly what the industry needed."
-                </p>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-bold">MW</span>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">Mike Wilson</div>
-                    <div className="text-gray-600">Fleet Manager, TransCorp</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Next Gen Section */}
+      <section className="py-20 bg-gray-50">
+        <NextGenSection />
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="scroll-animate opacity-0 transform translate-y-8">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Transform Your Logistics?
-            </h2>
-            <p className="text-xl text-blue-100 mb-12 max-w-3xl mx-auto">
-              Join thousands of shippers and drivers who are already using Dock Direct Connect 
-              to streamline their operations and increase their profits.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <Button 
-                size="lg" 
-                variant="secondary"
-                onClick={() => navigate('/demo')}
-                className="bg-white text-blue-600 hover:bg-gray-100 px-12 py-4 text-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-              >
-                <Play className="mr-3 h-6 w-6" />
-                Try Demo Now
-              </Button>
-              <Button 
-                size="lg" 
-                variant="outline"
-                className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-12 py-4 text-xl font-semibold transition-all duration-300 transform hover:scale-105"
-              >
-                <MessageCircle className="mr-3 h-6 w-6" />
-                Schedule Demo
-              </Button>
-            </div>
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-white mb-6">
+            Ready to Transform Your Freight Operations?
+          </h2>
+          <p className="text-xl text-blue-100 mb-8">
+            Join thousands of businesses already using Dock Direct Connect to streamline their logistics
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button
+              onClick={() => navigate('/auth/shipper')}
+              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
+            >
+              Start Shipping
+            </Button>
+            <Button
+              onClick={() => navigate('/auth/driver')}
+              variant="outline"
+              className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold"
+            >
+              Become a Driver
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Professional Footer */}
+      {/* Footer */}
       <Footer />
     </div>
   );

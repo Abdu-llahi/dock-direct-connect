@@ -1,357 +1,290 @@
-# Dock Direct Connect
+# Dock Direct Connect 🚛📦
 
-AI-assisted dispatch, instant driver matching. Book, track, and close loads in minutes. Smart contracts, live bids, and compliance—handled.
+**Direct freight connections between shippers and drivers. No brokers. No delays. Just results.**
 
-## 🚀 Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 
-- **Smart Shipment Posting**: AI-optimized load descriptions with automatic pricing suggestions
-- **Live Bidding System**: Real-time driver bidding with instant notifications
-- **Smart Contract Previews**: Automated contract generation with legal compliance
-- **Compliance Automation**: Built-in regulatory compliance and safety monitoring
-- **PWA Ready**: Progressive Web App with offline capabilities
-- **Mobile Ready**: Capacitor configuration for future iOS/Android apps
+## 🎯 Overview
 
-## 🛠 Tech Stack
+Dock Direct Connect is a revolutionary freight logistics platform that eliminates traditional broker fees by connecting shippers directly with qualified drivers. Built with modern web technologies, it provides real-time load matching, instant payments, and comprehensive tracking capabilities.
 
-### Backend
-- **Node.js** + **Express** + **TypeScript**
-- **Prisma ORM** + **PostgreSQL**
-- **JWT Authentication** (jose library)
-- **bcrypt** for password hashing
-- **Pino** for logging
-- **Zod** for validation
+### ✨ Key Features
 
-### Frontend
-- **Vite** + **React** + **TypeScript**
-- **Tailwind CSS** + **shadcn/ui**
-- **React Router** for navigation
-- **React Query** for data fetching
-- **PWA** with service worker
+- **Direct Connections**: Connect shippers with drivers without broker intermediaries
+- **AI-Powered Matching**: Intelligent load-driver matching based on location, equipment, and availability
+- **Real-Time Tracking**: Live shipment tracking with GPS integration
+- **Instant Payments**: Automated payment processing with escrow protection
+- **Multi-Factor Authentication**: Enhanced security with SMS/email verification
+- **Mobile-First Design**: Responsive web app optimized for mobile devices
+- **Comprehensive Analytics**: Detailed reporting and business intelligence
+- **Regulatory Compliance**: Built-in safety monitoring and compliance tools
 
-### Database
-- **Neon Postgres** (serverless)
-- **Prisma migrations**
+## 🏗️ Architecture
 
-### Deployment
-- **Railway** (backend)
-- **Vercel** (frontend)
-- **GitHub Actions** (CI/CD)
+```
+dock-direct-connect/
+├── client/                 # React + TypeScript frontend
+│   ├── src/
+│   │   ├── components/    # Reusable UI components
+│   │   ├── pages/         # Application pages
+│   │   ├── hooks/         # Custom React hooks
+│   │   └── lib/           # Utility functions and API client
+├── server/                 # Node.js + Express backend
+│   ├── src/
+│   │   ├── routes/        # API endpoint definitions
+│   │   ├── utils/         # Authentication, logging, etc.
+│   │   └── db.ts          # Database connection
+├── prisma/                 # Database schema and migrations
+└── shared/                 # Shared types and utilities
+```
 
-## 📋 Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-- Neon Postgres database
-- Railway account (for backend deployment)
-- Vercel account (for frontend deployment)
-
-## 🚀 Quick Start (Local Development)
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ 
-- Docker & Docker Compose
-- Git
 
-### Step-by-Step Setup
+- **Node.js** 18+ and **npm** 8+
+- **PostgreSQL** 14+ database
+- **Git** for version control
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd dock-direct-connect
-   ```
-
-2. **Start the database**
-   ```bash
-   npm run db:up
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   # Copy the example environment file
-   cp env.example .env
-   
-   # The .env file should contain:
-   DATABASE_URL="postgresql://dockdirect:dockdirect123@localhost:5432/dockdirect"
-   JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-   NODE_ENV="development"
-   PORT=5000
-   CLIENT_URL="http://localhost:5173"
-   ```
-
-4. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-5. **Generate Prisma client**
-   ```bash
-   npm run db:generate
-   ```
-
-6. **Run database migrations**
-   ```bash
-   npm run migrate
-   ```
-
-7. **Seed the database with sample data**
-   ```bash
-   npm run seed
-   ```
-
-8. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-9. **Open the application**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:5000
-   - Database: localhost:5432
-
-### Test Credentials
-After seeding, you can use these test accounts:
-
-- **Admin**: admin@dockdirect.com / admin123
-- **Shipper**: walmart@dockdirect.com / shipper123
-- **Driver**: mike.rodriguez@dockdirect.com / driver123
-
-## 📁 Project Structure
-
-```
-dock-direct-connect/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/     # UI components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom hooks
-│   │   └── lib/           # Utilities
-│   └── public/            # Static assets
-├── server/                # Express backend
-│   └── src/
-│       ├── routes.ts      # API routes
-│       ├── db.ts          # Database connection
-│       └── utils/         # Utilities
-├── prisma/                # Database schema & migrations
-│   ├── schema.prisma      # Prisma schema
-│   └── seed.ts           # Database seeding
-├── docker-compose.yml     # Database setup
-└── env.example           # Environment variables template
-```
-
-## 🛠 Tech Stack
-
-### Backend
-- **Node.js** + **Express** + **TypeScript**
-- **Prisma ORM** + **PostgreSQL** (Docker)
-- **JWT Authentication** (jose library)
-- **bcrypt** for password hashing
-- **Pino** for logging
-- **Zod** for validation
-
-### Frontend
-- **Vite** + **React** + **TypeScript**
-- **Tailwind CSS** + **shadcn/ui**
-- **React Router** for navigation
-- **React Query** for data fetching
-- **PWA** with service worker
-
-### Database
-- **PostgreSQL** (Docker Compose)
-- **Prisma migrations**
-
-### Local Development
-- **Docker Compose** for database
-- **Cross-platform** environment variables
-- **Hot reload** development server
-
-Start the development server:
+### 1. Clone the Repository
 
 ```bash
-npm run dev
+git clone https://github.com/your-org/dock-direct-connect.git
+cd dock-direct-connect
 ```
 
-The application will be available at:
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:5000
-
-### 5. Testing
-
-Run the test suite:
+### 2. Install Dependencies
 
 ```bash
-npm run test
+npm run install:all
 ```
 
-## 📁 Project Structure
+### 3. Environment Setup
 
-```
-dock-direct-connect/
-├── client/                 # Frontend React app
-│   ├── public/            # Static assets
-│   ├── src/
-│   │   ├── components/    # React components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom hooks
-│   │   ├── lib/           # Utilities and API client
-│   │   └── ...
-│   └── ...
-├── server/                # Backend Express app
-│   ├── src/
-│   │   ├── utils/         # Utilities (auth, logger)
-│   │   ├── routes.ts      # API routes
-│   │   ├── app.ts         # Express app setup
-│   │   ├── db.ts          # Database connection
-│   │   ├── seed.ts        # Database seeding
-│   │   └── test.ts        # API tests
-│   └── ...
-├── shared/                # Shared types and schemas
-│   └── schema.prisma      # Prisma schema
-├── migrations/            # Database migrations
-├── capacitor.config.ts    # Capacitor mobile config
-├── manifest.json          # PWA manifest
-└── ...
+Copy the environment template and configure your settings:
+
+```bash
+cp env.example .env
 ```
 
-## 🔧 Available Scripts
-
-### Development
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-
-### Database
-- `npm run migrate` - Run database migrations
-- `npm run seed` - Seed database with sample data
-
-### Testing
-- `npm run test` - Run test suite
-- `npm run check` - Type checking
-
-## 🚀 Deployment
-
-### Backend (Railway)
-
-1. Connect your GitHub repository to Railway
-2. Set environment variables in Railway dashboard
-3. Deploy automatically on push to main branch
-
-### Frontend (Vercel)
-
-1. Connect your GitHub repository to Vercel
-2. Set build command: `npm run build`
-3. Set output directory: `dist`
-4. Set environment variables:
-   - `VITE_API_URL`: Your Railway backend URL
-
-### Environment Variables for Production
+Update `.env` with your configuration:
 
 ```env
-# Backend (Railway)
-DATABASE_URL=your-neon-database-url
-JWT_SECRET=your-production-jwt-secret
-CLIENT_URL=https://your-vercel-domain.vercel.app
-NODE_ENV=production
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/dock_direct_connect"
 
-# Frontend (Vercel)
-VITE_API_URL=https://your-railway-app.railway.app
+# JWT Secrets (generate secure random strings)
+JWT_SECRET="your-super-secret-jwt-key"
+JWT_REFRESH_SECRET="your-super-secret-refresh-key"
+
+# Server
+PORT=3001
+NODE_ENV=development
+
+# Email (for MFA and password reset)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 ```
 
-## 📱 PWA Features
-
-The app is configured as a Progressive Web App with:
-
-- **Offline Support**: Service worker caches essential resources
-- **Install Prompt**: Users can install the app on their devices
-- **App-like Experience**: Full-screen mode and native-like navigation
-- **Push Notifications**: Ready for future implementation
-
-## 📱 Mobile App (Future)
-
-The project includes Capacitor configuration for future mobile app development:
-
-- **iOS**: Native iOS app using Capacitor
-- **Android**: Native Android app using Capacitor
-- **Shared Code**: Same React codebase for web and mobile
-
-To build for mobile (when ready):
+### 4. Database Setup
 
 ```bash
-npm install @capacitor/cli @capacitor/core
-npm install @capacitor/ios @capacitor/android
-npx cap add ios
-npx cap add android
-npx cap sync
+# Generate Prisma client
+npm run db:generate
+
+# Push schema to database
+npm run db:push
+
+# Seed with sample data
+npm run db:seed
 ```
 
-## 🔐 Authentication
+### 5. Start Development Servers
 
-The app uses JWT-based authentication with role-based access control:
+```bash
+# Start both frontend and backend
+npm run dev
 
-- **Roles**: shipper, driver, admin
-- **Token Expiry**: 24 hours
-- **Password Hashing**: bcrypt with salt rounds 12
-- **Secure Headers**: Helmet.js for security
+# Or start individually:
+npm run dev:server    # Backend on port 3001
+npm run dev:client    # Frontend on port 5173
+```
 
-## 📊 API Endpoints
+## 🗄️ Database Schema
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
+The application uses PostgreSQL with the following core entities:
 
-### Shipments
-- `POST /api/shipments` - Create shipment (shipper only)
-- `GET /api/shipments` - Get shipments (role-filtered)
-- `PATCH /api/shipments/:id/status` - Update shipment status
+- **Users**: Shippers, drivers, admins, and warehouse operators
+- **Loads**: Shipment details, requirements, and status
+- **Bids**: Driver proposals for loads
+- **Contracts**: Legal agreements between parties
+- **Documents**: Rate confirmations, BOLs, invoices
+- **Locations**: Geographic data for routing
+- **Audit Logs**: Comprehensive activity tracking
 
-### Bids
-- `POST /api/bids` - Create bid (driver only)
-- `POST /api/bids/:id/accept` - Accept bid (shipper only)
+## 🔐 Authentication & Security
 
-### Development
-- `POST /api/seed` - Seed database (development only)
-- `GET /healthz` - Health check
+### User Roles & Permissions
+
+- **Shipper**: Post loads, manage shipments, track deliveries
+- **Driver**: View loads, submit bids, manage routes
+- **Admin**: Platform management, user approval, analytics
+- **Warehouse**: Inventory management, loading coordination
+
+### Security Features
+
+- JWT-based authentication with refresh tokens
+- Multi-factor authentication (SMS/email)
+- Password reset with secure tokens
+- Role-based access control
+- Rate limiting and DDoS protection
+- Input validation and sanitization
+- SQL injection prevention
+
+## 📱 Frontend Features
+
+### Responsive Design
+- Mobile-first approach
+- Progressive Web App (PWA) capabilities
+- Touch-optimized interfaces
+- Cross-browser compatibility
+
+### User Experience
+- Intuitive navigation
+- Real-time updates
+- Interactive dashboards
+- Smooth animations and transitions
+- Accessibility compliance
+
+### Technology Stack
+- **React 18** with TypeScript
+- **Tailwind CSS** for styling
+- **Radix UI** for accessible components
+- **React Router** for navigation
+- **React Query** for data fetching
+- **Framer Motion** for animations
+
+## 🔧 Backend Features
+
+### API Design
+- RESTful endpoints
+- GraphQL support (planned)
+- WebSocket for real-time features
+- Rate limiting and throttling
+- Comprehensive error handling
+
+### Performance
+- Database query optimization
+- Caching strategies
+- Connection pooling
+- Async/await patterns
+- Memory leak prevention
+
+### Technology Stack
+- **Node.js** with Express
+- **TypeScript** for type safety
+- **Prisma** ORM
+- **PostgreSQL** database
+- **JWT** authentication
+- **Pino** logging
 
 ## 🧪 Testing
 
-The project includes unit tests for:
+```bash
+# Run all tests
+npm test
 
-- Authentication endpoints
-- Shipment management
-- API validation
-- Error handling
+# Test specific areas
+npm run test:server    # Backend tests
+npm run test:client    # Frontend tests
 
-Run tests with:
+# Coverage reports
+npm run test:coverage
+```
+
+## 📦 Deployment
+
+### Production Build
 
 ```bash
-npm run test
+# Build both applications
+npm run build
+
+# Start production server
+npm start
+```
+
+### Environment Variables
+
+Ensure all production environment variables are set:
+- Database connection strings
+- JWT secrets
+- SMTP configuration
+- CORS origins
+- Log levels
+
+### Docker Support
+
+```bash
+# Build and run with Docker
+docker-compose up -d
+
+# Or build custom image
+docker build -t dock-direct-connect .
+docker run -p 3001:3001 dock-direct-connect
 ```
 
 ## 🤝 Contributing
 
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+### Development Workflow
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
+4. Add tests
 5. Submit a pull request
+
+### Code Standards
+
+- TypeScript strict mode
+- ESLint configuration
+- Prettier formatting
+- Conventional commits
+- Comprehensive testing
 
 ## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 
-For support and questions:
+### Documentation
+- [API Reference](docs/API.md)
+- [User Guide](docs/USER_GUIDE.md)
+- [Developer Guide](docs/DEVELOPER.md)
 
-- Create an issue in the GitHub repository
-- Contact the development team
-- Check the documentation
+### Community
+- [Discussions](https://github.com/your-org/dock-direct-connect/discussions)
+- [Issues](https://github.com/your-org/dock-direct-connect/issues)
+- [Wiki](https://github.com/your-org/dock-direct-connect/wiki)
 
-## 🗺 Roadmap
+### Contact
+- **Email**: support@dockdirectconnect.com
+- **Discord**: [Join our community](https://discord.gg/dockdirect)
+- **Twitter**: [@DockDirect](https://twitter.com/DockDirect)
 
-- [ ] Real-time notifications
-- [ ] Advanced analytics dashboard
-- [ ] Mobile app development
-- [ ] Payment integration
-- [ ] Advanced compliance features
-- [ ] AI-powered route optimization
-- [ ] Multi-language support
+## 🙏 Acknowledgments
+
+- Built with ❤️ by the Dock Direct Connect team
+- Inspired by the need for transparent, efficient freight logistics
+- Powered by modern web technologies and best practices
+
+---
+
+**Ready to revolutionize your freight operations?** [Get Started Today](https://dockdirectconnect.com) 🚀

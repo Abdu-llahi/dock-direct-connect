@@ -1,18 +1,27 @@
 
-import { useState, useEffect, createContext, useContext } from 'react';
-import { toast } from 'sonner';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 
-type UserType = 'shipper' | 'driver' | 'admin';
+type UserType = 'shipper' | 'driver' | 'admin' | 'warehouse';
 
 interface AuthUser {
   id: string;
   email: string;
   name: string;
   role: UserType;
-  status?: string;
+  status: 'pending' | 'active' | 'suspended' | 'rejected';
   verificationStatus?: string;
   emailVerified?: boolean;
   phone?: string;
+  companyName?: string;
+  profile?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    rating: number;
+    totalLoads: number;
+    totalRevenue: number;
+  };
 }
 
 interface AuthContextType {
@@ -20,8 +29,10 @@ interface AuthContextType {
   loading: boolean;
   isAuthenticated: boolean;
   signUp: (email: string, password: string, name: string, userType: UserType, additionalData?: any) => Promise<{ error?: any }>;
-  signIn: (email: string, password: string, requiredRole?: UserType) => Promise<{ error?: any }>;
-  resetPassword: (email: string) => Promise<{ error?: any }>;
+  signIn: (email: string, password: string, requiredRole?: UserType) => Promise<{ error?: any; requiresMFA?: boolean; userId?: string }>;
+  verifyMFA: (email: string, code: string) => Promise<{ error?: any }>;
+  forgotPassword: (email: string) => Promise<{ error?: any }>;
+  resetPassword: (token: string, newPassword: string) => Promise<{ error?: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: any) => Promise<{ error?: any }>;
   refreshToken: () => Promise<boolean>;
@@ -32,93 +43,78 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshTokenValue, setRefreshTokenValue] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
-      // Check for stored tokens
-      const storedAccessToken = localStorage.getItem('access_token');
-      const storedRefreshToken = localStorage.getItem('refresh_token');
-      const storedUser = localStorage.getItem('auth_user');
-      
-      if (storedAccessToken && storedRefreshToken && storedUser) {
-        try {
-          setAccessToken(storedAccessToken);
-          setRefreshTokenValue(storedRefreshToken);
-          setUser(JSON.parse(storedUser));
-          
-          // Verify token is still valid by fetching user profile
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          // Verify token and get user data
           const response = await fetch('/api/auth/me', {
             headers: {
-              'Authorization': `Bearer ${storedAccessToken}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          if (!response.ok) {
-            // Token might be expired, try to refresh
-            const refreshed = await refreshTokenSilently();
-            if (!refreshed) {
-              clearAuthData();
+              'Authorization': `Bearer ${token}`
             }
+          });
+
+          if (response.ok) {
+            const userData = await response.json();
+            setUser(userData.user);
+            setIsAuthenticated(true);
           } else {
-            const data = await response.json();
-            setUser(data.user);
+            // Token is invalid, clear it
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
           }
-        } catch (error) {
-          console.error('Error initializing auth:', error);
-          clearAuthData();
         }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
-    
+
     initializeAuth();
   }, []);
-  
+
   const clearAuthData = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     setUser(null);
-    setAccessToken(null);
-    setRefreshTokenValue(null);
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    setIsAuthenticated(false);
   };
-  
+
   const refreshTokenSilently = async (): Promise<boolean> => {
     try {
-      const storedRefreshToken = localStorage.getItem('refresh_token');
-      if (!storedRefreshToken) return false;
-      
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) return false;
+
       const response = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refreshToken: storedRefreshToken }),
+        body: JSON.stringify({ refreshToken }),
       });
-      
-      if (!response.ok) return false;
-      
-      const data = await response.json();
-      setAccessToken(data.accessToken);
-      localStorage.setItem('access_token', data.accessToken);
-      
-      return true;
+
+      if (response.ok) {
+        const { accessToken, refreshToken: newRefreshToken } = await response.json();
+        localStorage.setItem('accessToken', accessToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
+        return true;
+      }
+      return false;
     } catch (error) {
-      console.error('Error refreshing token:', error);
+      console.error('Token refresh error:', error);
       return false;
     }
   };
 
-
   const signUp = async (email: string, password: string, name: string, userType: UserType, additionalData: any = {}) => {
     try {
-      console.log('Starting signup process for:', email, userType);
-      
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,42 +124,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           password,
           name,
           role: userType,
-          phone: additionalData.phone,
-          additionalData
+          ...additionalData
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Registration failed');
-        return { error: new Error(data.error) };
+        return { error: data.error || 'Registration failed' };
       }
 
-      // Store tokens and user data
-      setUser(data.user);
-      setAccessToken(data.accessToken);
-      setRefreshTokenValue(data.refreshToken);
-      
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      localStorage.setItem('access_token', data.accessToken);
-      localStorage.setItem('refresh_token', data.refreshToken);
-      
-      toast.success('Account created successfully!');
-      return { error: null };
-    } catch (err) {
-      console.error('Signup error:', err);
-      const error = err as Error;
-      toast.error(`Registration failed: ${error.message}`);
-      return { error };
+      // Registration successful but requires admin approval
+      return { error: undefined };
+    } catch (error) {
+      console.error('Registration error:', error);
+      return { error: 'Network error occurred' };
     }
   };
 
   const signIn = async (email: string, password: string, requiredRole?: UserType) => {
     try {
-      console.log('Attempting sign in for:', email);
-      
-      const response = await fetch('/api/auth/signin', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,104 +155,183 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || 'Sign in failed');
-        return { error: new Error(data.error) };
+        if (data.requiresApproval) {
+          return { error: 'Account pending approval. Please wait for admin approval.' };
+        }
+        return { error: data.error || 'Login failed' };
       }
 
-      // Check role if required
-      if (requiredRole && data.user.role !== requiredRole) {
-        const roleNames = { shipper: 'Shipper', driver: 'Driver', admin: 'Admin' };
-        toast.error(`This page is only for ${roleNames[requiredRole]} accounts. Please use the correct login page or go to the home page to select the right portal.`);
-        return { error: new Error('Invalid role') };
+      if (data.requiresMFA) {
+        return { error: undefined, requiresMFA: true, userId: data.userId };
       }
-      
-      // Store tokens and user data
+
+      // Store tokens
+      localStorage.setItem('accessToken', data.tokens.accessToken);
+      if (data.tokens.refreshToken) {
+        localStorage.setItem('refreshToken', data.tokens.refreshToken);
+      }
+
+      // Set user data
       setUser(data.user);
-      setAccessToken(data.accessToken);
-      setRefreshTokenValue(data.refreshToken);
-      
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
-      localStorage.setItem('access_token', data.accessToken);
-      localStorage.setItem('refresh_token', data.refreshToken);
-      
-      const roleNames = { shipper: 'Shipper', driver: 'Driver', admin: 'Admin' };
-      toast.success(`Welcome back, ${requiredRole ? roleNames[requiredRole] : 'User'}!`);
-      return { error: null };
-    } catch (err) {
-      const error = err as Error;
-      console.error('Sign in error:', err);
-      toast.error(error.message);
-      return { error };
+      setIsAuthenticated(true);
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('Login error:', error);
+      return { error: 'Network error occurred' };
+    }
+  };
+
+  const verifyMFA = async (email: string, code: string) => {
+    try {
+      const response = await fetch('/api/auth/mfa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, code }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'MFA verification failed' };
+      }
+
+      // Store tokens
+      localStorage.setItem('accessToken', data.tokens.accessToken);
+      if (data.tokens.refreshToken) {
+        localStorage.setItem('refreshToken', data.tokens.refreshToken);
+      }
+
+      // Set user data
+      setUser(data.user);
+      setIsAuthenticated(true);
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('MFA verification error:', error);
+      return { error: 'Network error occurred' };
+    }
+  };
+
+  const forgotPassword = async (email: string) => {
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Password reset request failed' };
+      }
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      return { error: 'Network error occurred' };
+    }
+  };
+
+  const resetPassword = async (token: string, newPassword: string) => {
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Password reset failed' };
+      }
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('Reset password error:', error);
+      return { error: 'Network error occurred' };
     }
   };
 
   const signOut = async () => {
     try {
-      // Call logout endpoint to revoke refresh token
-      if (refreshTokenValue) {
+      // Call logout endpoint if available
+      const token = localStorage.getItem('accessToken');
+      if (token) {
         await fetch('/api/auth/logout', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refreshToken: refreshTokenValue }),
+            'Authorization': `Bearer ${token}`
+          }
         });
       }
-      
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
       clearAuthData();
-      toast.success('Signed out successfully');
-    } catch (err) {
-      console.error('Sign out error:', err);
-      clearAuthData(); // Clear data even if logout request fails
-    }
-  };
-
-  const resetPassword = async (email: string) => {
-    try {
-      // TODO: Implement password reset functionality
-      toast.success('Password reset functionality will be available soon.');
-      return { error: null };
-    } catch (err) {
-      const error = err as Error;
-      toast.error(error.message);
-      return { error };
     }
   };
 
   const updateProfile = async (updates: any) => {
-    if (!user) return { error: new Error('No user logged in') };
-
     try {
-      // TODO: Implement server-side profile update
-      setUser(prev => prev ? { ...prev, ...updates } : null);
-      if (user) {
-        localStorage.setItem('auth_user', JSON.stringify({ ...user, ...updates }));
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        return { error: 'No authentication token' };
       }
-      toast.success('Profile updated successfully');
-      return { error: null };
-    } catch (err) {
-      const error = err as Error;
-      toast.error(error.message);
-      return { error };
+
+      const response = await fetch('/api/auth/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updates),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: data.error || 'Profile update failed' };
+      }
+
+      // Update local user state
+      setUser(prev => prev ? { ...prev, ...data.user } : null);
+
+      return { error: undefined };
+    } catch (error) {
+      console.error('Profile update error:', error);
+      return { error: 'Network error occurred' };
     }
   };
-  
+
   const refreshToken = async (): Promise<boolean> => {
-    return await refreshTokenSilently();
+    return refreshTokenSilently();
+  };
+
+  const value = {
+    user,
+    loading,
+    isAuthenticated,
+    signUp,
+    signIn,
+    verifyMFA,
+    forgotPassword,
+    resetPassword,
+    signOut,
+    updateProfile,
+    refreshToken,
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      loading,
-      isAuthenticated: !!user && !!accessToken,
-      signUp,
-      signIn,
-      signOut,
-      resetPassword,
-      updateProfile,
-      refreshToken
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

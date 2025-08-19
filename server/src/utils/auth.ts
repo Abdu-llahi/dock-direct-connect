@@ -1,9 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
-import db from '../db';
-
-
+import { prisma } from '../db';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -28,11 +26,22 @@ export const generateTokens = async (user: { id: string; email: string; role: st
     .setExpirationTime('24h')
     .sign(JWT_SECRET);
 
-  return { accessToken };
+  const refreshToken = await new SignJWT({
+    sub: user.email,
+    userId: user.id,
+    role: user.role,
+    type: 'refresh'
+  })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(JWT_SECRET);
+
+  return { accessToken, refreshToken };
 };
 
 export const hashPassword = async (password: string): Promise<string> => {
-  const saltRounds = 12;
+  const saltRounds = parseInt(process.env.BCRYPT_ROUNDS || '12');
   return bcrypt.hash(password, saltRounds);
 };
 
@@ -64,11 +73,16 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     // Verify user still exists and is active
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
-    if (!user || user.status !== 'active') {
-      return res.status(401).json({ error: 'User not found or inactive' });
+    
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(401).json({ error: 'Account not approved or inactive' });
     }
 
     req.user = {
@@ -95,6 +109,28 @@ export const requireRole = (allowedRoles: string[]) => {
 
     next();
   };
+};
+
+// MFA functions
+export const generateMFACode = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+export const verifyMFACode = (inputCode: string, storedCode: string): boolean => {
+  return inputCode === storedCode;
+};
+
+// Password reset functions
+export const generatePasswordResetToken = (): string => {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
+export const hashPasswordResetToken = async (token: string): Promise<string> => {
+  return bcrypt.hash(token, 10);
+};
+
+export const verifyPasswordResetToken = async (token: string, hashedToken: string): Promise<boolean> => {
+  return bcrypt.compare(token, hashedToken);
 };
 
 // Extend Express Request interface
