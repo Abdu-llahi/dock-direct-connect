@@ -14,6 +14,9 @@ import PasswordReset from "./pages/PasswordReset";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import NotFound from "./pages/NotFound";
+import Demo from "./pages/Demo";
+import ShipperDashboard from "./pages/ShipperDashboard";
+import DriverDashboard from "./pages/DriverDashboard";
 
 const queryClient = new QueryClient();
 
@@ -26,14 +29,16 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/:role" element={<Auth />} />
             <Route path="/auth/reset-password" element={<PasswordReset />} />
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-panel" element={<AdminPanel />} />
-            <Route path="/shipper-dashboard" element={<Index />} />
-            <Route path="/driver-dashboard" element={<Index />} />
+            <Route path="/dashboard/shipper" element={<ShipperDashboard />} />
+            <Route path="/dashboard/driver" element={<DriverDashboard />} />
+            <Route path="/dashboard/admin" element={<AdminDashboard />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
