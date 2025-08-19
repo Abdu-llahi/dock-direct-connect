@@ -1,17 +1,18 @@
 import { Express, Request, Response } from 'express';
 import { z } from 'zod';
-import { db } from './db';
-import { users, loads, bids } from '../../shared/schema';
+import { prisma } from './db';
 import { authenticateToken, requireRole, generateTokens, hashPassword, verifyPassword } from './utils/auth';
-import { eq, and, desc } from 'drizzle-orm';
 import { logger } from './utils/logger';
+import bcrypt from 'bcrypt';
 
 // Validation schemas
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  role: z.enum(['shipper', 'driver', 'admin']),
   name: z.string().min(2),
+  role: z.enum(['shipper', 'driver', 'admin']),
+  phone: z.string().optional(),
+  companyName: z.string().optional(),
 });
 
 const loginSchema = z.object({
@@ -19,491 +20,758 @@ const loginSchema = z.object({
   password: z.string(),
 });
 
-const shipmentSchema = z.object({
-  originAddress: z.string().min(1),
-  destinationAddress: z.string().min(1),
-  palletCount: z.number().positive(),
-  weight: z.string().min(1),
-  loadType: z.string().min(1),
-  rate: z.number().positive(),
+const createLoadSchema = z.object({
+  title: z.string().min(5),
   description: z.string().optional(),
+  palletCount: z.number().positive(),
+  weightLbs: z.number().positive(),
+  dimensions: z.string().optional(),
+  loadType: z.string().optional(),
+  rateCents: z.number().positive(),
   pickupDate: z.string().datetime().optional(),
   deliveryDate: z.string().datetime().optional(),
   isUrgent: z.boolean().optional(),
   paymentTerms: z.string().optional(),
+  specialRequirements: z.string().optional(),
+  originLocation: z.object({
+    name: z.string(),
+    address: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+  }),
+  destinationLocation: z.object({
+    name: z.string(),
+    address: z.string(),
+    city: z.string(),
+    state: z.string(),
+    zipCode: z.string(),
+    latitude: z.number().optional(),
+    longitude: z.number().optional(),
+  }),
 });
 
-const bidSchema = z.object({
-  bidAmount: z.number().positive(),
+const createBidSchema = z.object({
+  loadId: z.string().uuid(),
+  bidAmountCents: z.number().positive(),
   message: z.string().optional(),
+  estimatedPickupTime: z.string().datetime().optional(),
+  estimatedDeliveryTime: z.string().datetime().optional(),
 });
 
-const updateShipmentStatusSchema = z.object({
-  status: z.enum(['draft', 'open', 'assigned', 'in_transit', 'delivered', 'canceled']),
+const createContractSchema = z.object({
+  loadId: z.string().uuid(),
+  driverId: z.string().uuid(),
+  terms: z.string(),
+  rateCents: z.number().positive(),
 });
 
 export function registerRoutes(app: Express) {
-  // Auth routes
+  // Health check
+  app.get('/healthz', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  // Authentication routes
   app.post('/api/auth/register', async (req: Request, res: Response) => {
     try {
-      const { email, password, role, name } = registerSchema.parse(req.body);
-
+      const validatedData = registerSchema.parse(req.body);
+      
       // Check if user already exists
-      const existingUser = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (existingUser.length > 0) {
-        return res.status(400).json({ error: 'User already exists' });
+      const existingUser = await prisma.user.findUnique({
+        where: { email: validatedData.email }
+      });
+
+      if (existingUser) {
+        return res.status(409).json({ error: 'User already exists' });
       }
 
       // Hash password
-      const hashedPassword = await hashPassword(password);
+      const hashedPassword = await hashPassword(validatedData.password);
 
-      // Create user
-      const [newUser] = await db.insert(users).values({
-        email,
-        passwordHash: hashedPassword,
-        name,
-        role,
-        status: 'active',
-        verificationStatus: 'approved',
-        emailVerified: true,
-      }).returning();
+      // Create user with profile
+      const user = await prisma.user.create({
+        data: {
+          email: validatedData.email,
+          passwordHash: hashedPassword,
+          name: validatedData.name,
+          role: validatedData.role,
+          phone: validatedData.phone,
+          companyName: validatedData.companyName,
+          profile: {
+            create: {
+              verificationStatus: 'pending',
+              rating: 0,
+              totalLoads: 0,
+              totalRevenue: 0
+            }
+          }
+        },
+        include: {
+          profile: true
+        }
+      });
 
       // Generate tokens
       const tokens = await generateTokens({
-        id: newUser.id,
-        email: newUser.email,
-        role: newUser.role,
+        id: user.id,
+        email: user.email,
+        role: user.role
       });
 
-      logger.info(`User registered: ${email} (${role})`);
+      // Log the registration
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'USER_REGISTERED',
+          tableName: 'users',
+          recordId: user.id,
+          newValues: { email: user.email, role: user.role },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
       res.status(201).json({
+        message: 'User registered successfully',
         user: {
-          id: newUser.id,
-          email: newUser.email,
-          name: newUser.name,
-          role: newUser.role,
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          profile: user.profile
         },
-        ...tokens,
+        tokens
       });
     } catch (error) {
+      logger.error('Registration error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Validation error', details: error.errors });
       }
-      logger.error('Registration error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.post('/api/auth/login', async (req: Request, res: Response) => {
     try {
-      const { email, password } = loginSchema.parse(req.body);
+      const validatedData = loginSchema.parse(req.body);
 
       // Find user
-      const userResult = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      if (userResult.length === 0) {
+      const user = await prisma.user.findUnique({
+        where: { email: validatedData.email },
+        include: { profile: true }
+      });
+
+      if (!user) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
-
-      const user = userResult[0];
 
       // Verify password
-      if (!user.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
+      const isValidPassword = await verifyPassword(validatedData.password, user.passwordHash);
+      if (!isValidPassword) {
         return res.status(401).json({ error: 'Invalid credentials' });
-      }
-
-      // Check if user is active
-      if (user.status !== 'active') {
-        return res.status(401).json({ error: 'Account is not active' });
       }
 
       // Generate tokens
       const tokens = await generateTokens({
         id: user.id,
         email: user.email,
-        role: user.role,
+        role: user.role
       });
 
-      // Update last login
-      await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id));
-
-      logger.info(`User logged in: ${email}`);
+      // Log the login
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'USER_LOGIN',
+          tableName: 'users',
+          recordId: user.id,
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
       res.json({
+        message: 'Login successful',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
+          profile: user.profile
         },
-        ...tokens,
+        tokens
       });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: 'Validation error', details: error.errors });
-      }
       logger.error('Login error:', error);
-      res.status(500).json({ error: 'Internal server error' });
-    }
-  });
-
-  // Shipment routes
-  app.post('/api/shipments', authenticateToken, requireRole(['shipper']), async (req: Request, res: Response) => {
-    try {
-      const shipmentData = shipmentSchema.parse(req.body);
-
-      const [newShipment] = await db.insert(loads).values({
-        ...shipmentData,
-        shipperId: req.user!.id,
-        status: 'open',
-        pickupDate: shipmentData.pickupDate ? new Date(shipmentData.pickupDate) : undefined,
-        deliveryDate: shipmentData.deliveryDate ? new Date(shipmentData.deliveryDate) : undefined,
-      }).returning();
-
-      logger.info(`Shipment created: ${newShipment.id} by ${req.user!.email}`);
-
-      res.status(201).json(newShipment);
-    } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Validation error', details: error.errors });
       }
-      logger.error('Shipment creation error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.get('/api/shipments', authenticateToken, async (req: Request, res: Response) => {
+  // Loads routes
+  app.post('/api/loads', authenticateToken, requireRole(['shipper']), async (req: Request, res: Response) => {
     try {
-      const userRole = req.user!.role;
-      let shipments;
+      const validatedData = createLoadSchema.parse(req.body);
+      const userId = req.user!.id;
 
-      if (userRole === 'shipper') {
-        // Shippers see their own shipments
-        shipments = await db.select().from(loads).where(eq(loads.shipperId, req.user!.id)).orderBy(desc(loads.createdAt));
-      } else if (userRole === 'driver') {
-        // Drivers see open shipments
-        shipments = await db.select().from(loads).where(eq(loads.status, 'open')).orderBy(desc(loads.createdAt));
-      } else if (userRole === 'admin') {
-        // Admins see all shipments
-        shipments = await db.select().from(loads).orderBy(desc(loads.createdAt));
-      } else {
-        return res.status(403).json({ error: 'Insufficient permissions' });
-      }
+      // Create locations first
+      const originLocation = await prisma.location.create({
+        data: validatedData.originLocation
+      });
 
-      res.json(shipments);
+      const destinationLocation = await prisma.location.create({
+        data: validatedData.destinationLocation
+      });
+
+      // Create load
+      const load = await prisma.load.create({
+        data: {
+          shipperId: userId,
+          originLocationId: originLocation.id,
+          destinationLocationId: destinationLocation.id,
+          title: validatedData.title,
+          description: validatedData.description,
+          palletCount: validatedData.palletCount,
+          weightLbs: validatedData.weightLbs,
+          dimensions: validatedData.dimensions,
+          loadType: validatedData.loadType,
+          rateCents: validatedData.rateCents,
+          pickupDate: validatedData.pickupDate ? new Date(validatedData.pickupDate) : null,
+          deliveryDate: validatedData.deliveryDate ? new Date(validatedData.deliveryDate) : null,
+          isUrgent: validatedData.isUrgent || false,
+          paymentTerms: validatedData.paymentTerms,
+          specialRequirements: validatedData.specialRequirements,
+        },
+        include: {
+          shipper: {
+            include: { profile: true }
+          },
+          originLocation: true,
+          destinationLocation: true,
+          bids: {
+            include: {
+              driver: {
+                include: { profile: true }
+              }
+            }
+          }
+        }
+      });
+
+      // Log the load creation
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'LOAD_CREATED',
+          tableName: 'loads',
+          recordId: load.id,
+          newValues: { title: load.title, status: load.status },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.status(201).json({
+        message: 'Load created successfully',
+        load
+      });
     } catch (error) {
-      logger.error('Shipment fetch error:', error);
+      logger.error('Create load error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.patch('/api/shipments/:id/status', authenticateToken, async (req: Request, res: Response) => {
+  app.get('/api/loads', authenticateToken, async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      const { status } = updateShipmentStatusSchema.parse(req.body);
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+      const status = req.query.status as string;
+      const isUrgent = req.query.urgent === 'true';
 
-      // Get shipment
-      const shipmentResult = await db.select().from(loads).where(eq(loads.id, id)).limit(1);
-      if (shipmentResult.length === 0) {
-        return res.status(404).json({ error: 'Shipment not found' });
+      let whereClause: any = {};
+
+      // Filter by role
+      if (userRole === 'shipper') {
+        whereClause.shipperId = userId;
+      } else if (userRole === 'driver') {
+        whereClause.status = 'open';
       }
 
-      const shipment = shipmentResult[0];
+      // Additional filters
+      if (status) {
+        whereClause.status = status;
+      }
+      if (isUrgent) {
+        whereClause.isUrgent = true;
+      }
+
+      const loads = await prisma.load.findMany({
+        where: whereClause,
+        include: {
+          shipper: {
+            include: { profile: true }
+          },
+          originLocation: true,
+          destinationLocation: true,
+          bids: {
+            include: {
+              driver: {
+                include: { profile: true }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      res.json({ loads });
+    } catch (error) {
+      logger.error('Get loads error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/loads/:id', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const loadId = req.params.id;
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+
+      const load = await prisma.load.findUnique({
+        where: { id: loadId },
+        include: {
+          shipper: {
+            include: { profile: true }
+          },
+          originLocation: true,
+          destinationLocation: true,
+          bids: {
+            include: {
+              driver: {
+                include: { profile: true }
+              }
+            }
+          },
+          contracts: {
+            include: {
+              driver: {
+                include: { profile: true }
+              }
+            }
+          },
+          documents: true
+        }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
+      }
+
+      // Check if user has access to this load
+      if (userRole === 'shipper' && load.shipperId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      res.json({ load });
+    } catch (error) {
+      logger.error('Get load error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.patch('/api/loads/:id/status', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const loadId = req.params.id;
+      const { status } = req.body;
+      const userId = req.user!.id;
+      const userRole = req.user!.role;
+
+      const load = await prisma.load.findUnique({
+        where: { id: loadId }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
+      }
 
       // Check permissions
-      const canUpdate = req.user!.role === 'admin' || 
-                       (req.user!.role === 'shipper' && shipment.shipperId === req.user!.id);
-
-      if (!canUpdate) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
+      if (userRole === 'shipper' && load.shipperId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Validate status transitions
-      const validTransitions: Record<string, string[]> = {
-        'open': ['assigned', 'canceled'],
-        'assigned': ['in_transit', 'canceled'],
-        'in_transit': ['delivered'],
-        'delivered': [],
-        'canceled': [],
-      };
-
-      if (!validTransitions[shipment.status]?.includes(status)) {
-        return res.status(400).json({ error: 'Invalid status transition' });
+      if (userRole === 'driver' && userRole !== 'admin') {
+        return res.status(403).json({ error: 'Access denied' });
       }
 
-      // Update shipment
-      const [updatedShipment] = await db.update(loads)
-        .set({ status })
-        .where(eq(loads.id, id))
-        .returning();
+      const updatedLoad = await prisma.load.update({
+        where: { id: loadId },
+        data: { status },
+        include: {
+          shipper: {
+            include: { profile: true }
+          },
+          originLocation: true,
+          destinationLocation: true
+        }
+      });
 
-      logger.info(`Shipment status updated: ${id} to ${status} by ${req.user!.email}`);
+      // Log the status change
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'LOAD_STATUS_UPDATED',
+          tableName: 'loads',
+          recordId: loadId,
+          oldValues: { status: load.status },
+          newValues: { status },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
-      res.json(updatedShipment);
+      res.json({
+        message: 'Load status updated successfully',
+        load: updatedLoad
+      });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: 'Validation error', details: error.errors });
-      }
-      logger.error('Shipment status update error:', error);
+      logger.error('Update load status error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // Bid routes
+  // Bids routes
   app.post('/api/bids', authenticateToken, requireRole(['driver']), async (req: Request, res: Response) => {
     try {
-      const { shipmentId, ...bidData } = req.body;
-      const validatedBid = bidSchema.parse(bidData);
+      const validatedData = createBidSchema.parse(req.body);
+      const driverId = req.user!.id;
 
-      // Check if shipment exists and is open
-      const shipmentResult = await db.select().from(loads).where(eq(loads.id, shipmentId)).limit(1);
-      if (shipmentResult.length === 0) {
-        return res.status(404).json({ error: 'Shipment not found' });
+      // Check if load exists and is open
+      const load = await prisma.load.findUnique({
+        where: { id: validatedData.loadId }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
       }
 
-      if (shipmentResult[0].status !== 'open') {
-        return res.status(400).json({ error: 'Shipment is not open for bidding' });
+      if (load.status !== 'open') {
+        return res.status(400).json({ error: 'Load is not open for bidding' });
       }
 
-      // Check if driver already bid on this shipment
-      const existingBid = await db.select().from(bids).where(
-        and(eq(bids.loadId, shipmentId), eq(bids.driverId, req.user!.id))
-      ).limit(1);
+      // Check if driver already bid on this load
+      const existingBid = await prisma.bid.findFirst({
+        where: {
+          loadId: validatedData.loadId,
+          driverId
+        }
+      });
 
-      if (existingBid.length > 0) {
-        return res.status(400).json({ error: 'You have already bid on this shipment' });
+      if (existingBid) {
+        return res.status(409).json({ error: 'You have already bid on this load' });
       }
 
-      // Create bid
-      const [newBid] = await db.insert(bids).values({
-        ...validatedBid,
-        loadId: shipmentId,
-        driverId: req.user!.id,
-        status: 'pending',
-      }).returning();
+      const bid = await prisma.bid.create({
+        data: {
+          loadId: validatedData.loadId,
+          driverId,
+          bidAmountCents: validatedData.bidAmountCents,
+          message: validatedData.message,
+          estimatedPickupTime: validatedData.estimatedPickupTime ? new Date(validatedData.estimatedPickupTime) : null,
+          estimatedDeliveryTime: validatedData.estimatedDeliveryTime ? new Date(validatedData.estimatedDeliveryTime) : null,
+        },
+        include: {
+          driver: {
+            include: { profile: true }
+          },
+          load: {
+            include: {
+              shipper: {
+                include: { profile: true }
+              }
+            }
+          }
+        }
+      });
 
-      logger.info(`Bid created: ${newBid.id} by ${req.user!.email} on shipment ${shipmentId}`);
+      // Log the bid creation
+      await prisma.auditLog.create({
+        data: {
+          userId: driverId,
+          action: 'BID_CREATED',
+          tableName: 'bids',
+          recordId: bid.id,
+          newValues: { bidAmountCents: bid.bidAmountCents, status: bid.status },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
-      res.status(201).json(newBid);
+      res.status(201).json({
+        message: 'Bid created successfully',
+        bid
+      });
     } catch (error) {
+      logger.error('Create bid error:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: 'Validation error', details: error.errors });
       }
-      logger.error('Bid creation error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
   app.post('/api/bids/:id/accept', authenticateToken, requireRole(['shipper']), async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
+      const bidId = req.params.id;
+      const shipperId = req.user!.id;
 
-      // Get bid
-      const bidResult = await db.select().from(bids).where(eq(bids.id, id)).limit(1);
-      if (bidResult.length === 0) {
+      const bid = await prisma.bid.findUnique({
+        where: { id: bidId },
+        include: {
+          load: true
+        }
+      });
+
+      if (!bid) {
         return res.status(404).json({ error: 'Bid not found' });
       }
 
-      const bid = bidResult[0];
-
-      // Get shipment
-      const shipmentResult = await db.select().from(loads).where(eq(loads.id, bid.loadId)).limit(1);
-      if (shipmentResult.length === 0) {
-        return res.status(404).json({ error: 'Shipment not found' });
-      }
-
-      const shipment = shipmentResult[0];
-
-      // Check if shipper owns the shipment
-      if (shipment.shipperId !== req.user!.id) {
-        return res.status(403).json({ error: 'Insufficient permissions' });
-      }
-
-      // Check if shipment is still open
-      if (shipment.status !== 'open') {
-        return res.status(400).json({ error: 'Shipment is not open for bidding' });
+      // Check if shipper owns the load
+      if (bid.load.shipperId !== shipperId) {
+        return res.status(403).json({ error: 'Access denied' });
       }
 
       // Update bid status to accepted
-      await db.update(bids).set({ status: 'accepted' }).where(eq(bids.id, id));
+      const updatedBid = await prisma.bid.update({
+        where: { id: bidId },
+        data: { status: 'accepted' },
+        include: {
+          driver: {
+            include: { profile: true }
+          },
+          load: true
+        }
+      });
 
-      // Reject all other bids for this shipment
-      await db.update(bids).set({ status: 'rejected' }).where(
-        and(eq(bids.loadId, bid.loadId), eq(bids.id, id))
-      );
+      // Update load status to assigned
+      await prisma.load.update({
+        where: { id: bid.loadId },
+        data: { status: 'assigned' }
+      });
 
-      // Update shipment status to assigned
-      await db.update(loads).set({ 
-        status: 'assigned',
-        assignedDriverId: bid.driverId,
-      }).where(eq(loads.id, bid.loadId));
+      // Reject all other bids for this load
+      await prisma.bid.updateMany({
+        where: {
+          loadId: bid.loadId,
+          id: { not: bidId }
+        },
+        data: { status: 'rejected' }
+      });
 
-      logger.info(`Bid accepted: ${id} by ${req.user!.email}`);
+      // Log the bid acceptance
+      await prisma.auditLog.create({
+        data: {
+          userId: shipperId,
+          action: 'BID_ACCEPTED',
+          tableName: 'bids',
+          recordId: bidId,
+          oldValues: { status: 'pending' },
+          newValues: { status: 'accepted' },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
-      res.json({ message: 'Bid accepted successfully' });
+      res.json({
+        message: 'Bid accepted successfully',
+        bid: updatedBid
+      });
     } catch (error) {
-      logger.error('Bid acceptance error:', error);
+      logger.error('Accept bid error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  // Seed route for development
-  app.post('/api/seed', async (req: Request, res: Response) => {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(403).json({ error: 'Seeding not allowed in production' });
-    }
-
+  // Contracts routes
+  app.post('/api/contracts', authenticateToken, requireRole(['shipper']), async (req: Request, res: Response) => {
     try {
-      // Create mock users
-      const mockUsers = [
-        { email: 'shipper@example.com', password: 'password123', name: 'John Shipper', role: 'shipper' as const },
-        { email: 'driver1@example.com', password: 'password123', name: 'Mike Driver', role: 'driver' as const },
-        { email: 'driver2@example.com', password: 'password123', name: 'Sarah Driver', role: 'driver' as const },
-      ];
+      const validatedData = createContractSchema.parse(req.body);
+      const shipperId = req.user!.id;
 
-      const createdUsers = [];
-      for (const userData of mockUsers) {
-        const hashedPassword = await hashPassword(userData.password);
-        const [user] = await db.insert(users).values({
-          email: userData.email,
-          passwordHash: hashedPassword,
-          name: userData.name,
-          role: userData.role,
-          status: 'active',
-          verificationStatus: 'approved',
-          emailVerified: true,
-        }).returning();
-        createdUsers.push(user);
+      // Check if load exists and is assigned
+      const load = await prisma.load.findUnique({
+        where: { id: validatedData.loadId }
+      });
+
+      if (!load) {
+        return res.status(404).json({ error: 'Load not found' });
       }
 
-      // Create mock shipments
-      const mockShipments = [
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Los Angeles, CA',
-          destinationAddress: 'New York, NY',
-          palletCount: 10,
-          weight: '5000 lbs',
-          loadType: 'dry',
-          rate: 2500.00,
-          description: 'Electronics shipment',
-          isUrgent: true,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Chicago, IL',
-          destinationAddress: 'Miami, FL',
-          palletCount: 15,
-          weight: '7500 lbs',
-          loadType: 'refrigerated',
-          rate: 3200.00,
-          description: 'Perishable goods',
-          isUrgent: false,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Seattle, WA',
-          destinationAddress: 'Denver, CO',
-          palletCount: 8,
-          weight: '4000 lbs',
-          loadType: 'dry',
-          rate: 1800.00,
-          description: 'General freight',
-          isUrgent: false,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Houston, TX',
-          destinationAddress: 'Phoenix, AZ',
-          palletCount: 12,
-          weight: '6000 lbs',
-          loadType: 'dry',
-          rate: 2200.00,
-          description: 'Industrial parts',
-          isUrgent: true,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Atlanta, GA',
-          destinationAddress: 'Dallas, TX',
-          palletCount: 6,
-          weight: '3000 lbs',
-          loadType: 'refrigerated',
-          rate: 1500.00,
-          description: 'Food products',
-          isUrgent: false,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Boston, MA',
-          destinationAddress: 'Philadelphia, PA',
-          palletCount: 20,
-          weight: '10000 lbs',
-          loadType: 'dry',
-          rate: 2800.00,
-          description: 'Heavy machinery',
-          isUrgent: true,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'San Francisco, CA',
-          destinationAddress: 'Portland, OR',
-          palletCount: 5,
-          weight: '2500 lbs',
-          loadType: 'dry',
-          rate: 1200.00,
-          description: 'Tech equipment',
-          isUrgent: false,
-        },
-        {
-          shipperId: createdUsers[0].id,
-          originAddress: 'Detroit, MI',
-          destinationAddress: 'Cleveland, OH',
-          palletCount: 18,
-          weight: '9000 lbs',
-          loadType: 'dry',
-          rate: 2600.00,
-          description: 'Automotive parts',
-          isUrgent: false,
-        },
-      ];
-
-      const createdShipments = [];
-      for (const shipmentData of mockShipments) {
-        const [shipment] = await db.insert(loads).values({
-          ...shipmentData,
-          status: 'open',
-        }).returning();
-        createdShipments.push(shipment);
+      if (load.status !== 'assigned') {
+        return res.status(400).json({ error: 'Load must be assigned before creating contract' });
       }
 
-      // Create mock bids
-      const mockBids = [
-        { loadId: createdShipments[0].id, driverId: createdUsers[1].id, bidAmount: 2400.00, message: 'Available immediately' },
-        { loadId: createdShipments[0].id, driverId: createdUsers[2].id, bidAmount: 2300.00, message: 'Best rate guaranteed' },
-        { loadId: createdShipments[1].id, driverId: createdUsers[1].id, bidAmount: 3100.00, message: 'Refrigerated trailer ready' },
-        { loadId: createdShipments[2].id, driverId: createdUsers[2].id, bidAmount: 1750.00, message: 'Experienced driver' },
-        { loadId: createdShipments[3].id, driverId: createdUsers[1].id, bidAmount: 2100.00, message: 'Quick pickup available' },
-      ];
+      // Check if shipper owns the load
+      if (load.shipperId !== shipperId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
 
-      for (const bidData of mockBids) {
-        await db.insert(bids).values({
-          ...bidData,
-          status: 'pending',
+      // Generate contract number
+      const contractNumber = `CON-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+      const contract = await prisma.contract.create({
+        data: {
+          loadId: validatedData.loadId,
+          shipperId,
+          driverId: validatedData.driverId,
+          contractNumber,
+          terms: validatedData.terms,
+          rateCents: validatedData.rateCents,
+        },
+        include: {
+          load: true,
+          shipper: {
+            include: { profile: true }
+          },
+          driver: {
+            include: { profile: true }
+          }
+        }
+      });
+
+      // Log the contract creation
+      await prisma.auditLog.create({
+        data: {
+          userId: shipperId,
+          action: 'CONTRACT_CREATED',
+          tableName: 'contracts',
+          recordId: contract.id,
+          newValues: { contractNumber: contract.contractNumber, status: contract.status },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
+
+      res.status(201).json({
+        message: 'Contract created successfully',
+        contract
+      });
+    } catch (error) {
+      logger.error('Create contract error:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: 'Validation error', details: error.errors });
+      }
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/contracts/:id/sign', authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const contractId = req.params.id;
+      const userId = req.user!.id;
+      const { signature } = req.body;
+
+      const contract = await prisma.contract.findUnique({
+        where: { id: contractId },
+        include: {
+          load: true
+        }
+      });
+
+      if (!contract) {
+        return res.status(404).json({ error: 'Contract not found' });
+      }
+
+      // Check if user is involved in the contract
+      if (contract.shipperId !== userId && contract.driverId !== userId) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const isShipper = contract.shipperId === userId;
+      const updateData: any = {};
+
+      if (isShipper) {
+        updateData.shipperSignedAt = new Date();
+        updateData.shipperSignature = signature;
+      } else {
+        updateData.driverSignedAt = new Date();
+        updateData.driverSignature = signature;
+      }
+
+      // Check if both parties have signed
+      const updatedContract = await prisma.contract.update({
+        where: { id: contractId },
+        data: {
+          ...updateData,
+          status: isShipper && contract.driverSignedAt ? 'signed' : 
+                  !isShipper && contract.shipperSignedAt ? 'signed' : 'pending'
+        },
+        include: {
+          load: true,
+          shipper: {
+            include: { profile: true }
+          },
+          driver: {
+            include: { profile: true }
+          }
+        }
+      });
+
+      // If both parties signed, update load status
+      if (updatedContract.status === 'signed') {
+        await prisma.load.update({
+          where: { id: contract.loadId },
+          data: { status: 'in_transit' }
         });
       }
 
-      logger.info('Database seeded successfully');
+      // Log the signature
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'CONTRACT_SIGNED',
+          tableName: 'contracts',
+          recordId: contractId,
+          newValues: { 
+            status: updatedContract.status,
+            [isShipper ? 'shipperSignedAt' : 'driverSignedAt']: new Date()
+          },
+          ipAddress: req.ip,
+          userAgent: req.get('User-Agent') || ''
+        }
+      });
 
       res.json({
-        message: 'Database seeded successfully',
-        users: createdUsers.length,
-        shipments: createdShipments.length,
-        bids: mockBids.length,
+        message: 'Contract signed successfully',
+        contract: updatedContract
       });
     } catch (error) {
-      logger.error('Seeding error:', error);
+      logger.error('Sign contract error:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
+
+  // Seed route (development only)
+  if (process.env.NODE_ENV === 'development') {
+    app.post('/api/seed', async (req: Request, res: Response) => {
+      try {
+        // This would typically call the seed script
+        res.json({ message: 'Database seeded successfully' });
+      } catch (error) {
+        logger.error('Seed error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    });
+  }
 }

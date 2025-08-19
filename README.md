@@ -45,58 +45,124 @@ AI-assisted dispatch, instant driver matching. Book, track, and close loads in m
 - Railway account (for backend deployment)
 - Vercel account (for frontend deployment)
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Local Development)
 
-### 1. Clone and Install
+### Prerequisites
+- Node.js 18+ 
+- Docker & Docker Compose
+- Git
 
-```bash
-git clone <repository-url>
-cd dock-direct-connect
-npm install
+### Step-by-Step Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <your-repo-url>
+   cd dock-direct-connect
+   ```
+
+2. **Start the database**
+   ```bash
+   npm run db:up
+   ```
+
+3. **Set up environment variables**
+   ```bash
+   # Copy the example environment file
+   cp env.example .env
+   
+   # The .env file should contain:
+   DATABASE_URL="postgresql://dockdirect:dockdirect123@localhost:5432/dockdirect"
+   JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+   NODE_ENV="development"
+   PORT=5000
+   CLIENT_URL="http://localhost:5173"
+   ```
+
+4. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+5. **Generate Prisma client**
+   ```bash
+   npm run db:generate
+   ```
+
+6. **Run database migrations**
+   ```bash
+   npm run migrate
+   ```
+
+7. **Seed the database with sample data**
+   ```bash
+   npm run seed
+   ```
+
+8. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+9. **Open the application**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:5000
+   - Database: localhost:5432
+
+### Test Credentials
+After seeding, you can use these test accounts:
+
+- **Admin**: admin@dockdirect.com / admin123
+- **Shipper**: walmart@dockdirect.com / shipper123
+- **Driver**: mike.rodriguez@dockdirect.com / driver123
+
+## 📁 Project Structure
+
+```
+dock-direct-connect/
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── components/     # UI components
+│   │   ├── pages/         # Page components
+│   │   ├── hooks/         # Custom hooks
+│   │   └── lib/           # Utilities
+│   └── public/            # Static assets
+├── server/                # Express backend
+│   └── src/
+│       ├── routes.ts      # API routes
+│       ├── db.ts          # Database connection
+│       └── utils/         # Utilities
+├── prisma/                # Database schema & migrations
+│   ├── schema.prisma      # Prisma schema
+│   └── seed.ts           # Database seeding
+├── docker-compose.yml     # Database setup
+└── env.example           # Environment variables template
 ```
 
-### 2. Environment Setup
+## 🛠 Tech Stack
 
-Copy the environment template and configure your variables:
+### Backend
+- **Node.js** + **Express** + **TypeScript**
+- **Prisma ORM** + **PostgreSQL** (Docker)
+- **JWT Authentication** (jose library)
+- **bcrypt** for password hashing
+- **Pino** for logging
+- **Zod** for validation
 
-```bash
-cp .env.sample .env
-```
+### Frontend
+- **Vite** + **React** + **TypeScript**
+- **Tailwind CSS** + **shadcn/ui**
+- **React Router** for navigation
+- **React Query** for data fetching
+- **PWA** with service worker
 
-Update `.env` with your configuration:
+### Database
+- **PostgreSQL** (Docker Compose)
+- **Prisma migrations**
 
-```env
-# Database
-DATABASE_URL=postgresql://username:password@host:port/database
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-
-# Client URL (for CORS)
-CLIENT_URL=http://localhost:5173
-
-# Logging
-LOG_LEVEL=info
-
-# Environment
-NODE_ENV=development
-```
-
-### 3. Database Setup
-
-Run migrations to create the database schema:
-
-```bash
-npm run migrate
-```
-
-Seed the database with sample data:
-
-```bash
-npm run seed
-```
-
-### 4. Development
+### Local Development
+- **Docker Compose** for database
+- **Cross-platform** environment variables
+- **Hot reload** development server
 
 Start the development server:
 
