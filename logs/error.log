@@ -1,0 +1,3 @@
+{"action":"security_event","details":{"clientIp":"172.31.71.66","email":"Abdiu33@icloud.com"},"event":"login_attempt_invalid_email","level":"error","message":"Security event","service":"dockdirect-api","timestamp":"2025-08-16T08:50:47.870Z"}
+{"action":"security_event","details":{"clientIp":"172.31.71.66","email":"Abdullahiu99@gmail.com"},"event":"login_attempt_invalid_email","level":"error","message":"Security event","service":"dockdirect-api","timestamp":"2025-08-16T08:50:53.204Z"}
+{"action":"security_event","details":{"clientIp":"172.31.71.66","email":"Abdullahiu99@gmail.com"},"event":"login_attempt_invalid_email","level":"error","message":"Security event","service":"dockdirect-api","timestamp":"2025-08-16T08:55:37.344Z"}
