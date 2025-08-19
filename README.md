@@ -15,7 +15,7 @@ AI-assisted dispatch, instant driver matching. Book, track, and close loads in m
 
 ### Backend
 - **Node.js** + **Express** + **TypeScript**
-- **Drizzle ORM** + **Neon Postgres**
+- **Prisma ORM** + **PostgreSQL**
 - **JWT Authentication** (jose library)
 - **bcrypt** for password hashing
 - **Pino** for logging
@@ -30,7 +30,7 @@ AI-assisted dispatch, instant driver matching. Book, track, and close loads in m
 
 ### Database
 - **Neon Postgres** (serverless)
-- **Drizzle migrations**
+- **Prisma migrations**
 
 ### Deployment
 - **Railway** (backend)
@@ -205,7 +205,7 @@ dock-direct-connect/
 │   │   └── test.ts        # API tests
 │   └── ...
 ├── shared/                # Shared types and schemas
-│   └── schema.ts          # Drizzle schema
+│   └── schema.prisma      # Prisma schema
 ├── migrations/            # Database migrations
 ├── capacitor.config.ts    # Capacitor mobile config
 ├── manifest.json          # PWA manifest

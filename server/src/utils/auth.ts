@@ -1,9 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcrypt';
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../db';
-import { users } from '../../../shared/schema';
-import { eq } from 'drizzle-orm';
+import db from '../db';
+
+
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-secret-key-change-in-production'
@@ -43,7 +43,7 @@ export const verifyPassword = async (password: string, hashedPassword: string): 
 export const verifyToken = async (token: string): Promise<JWTPayload | null> => {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
-    return payload as JWTPayload;
+    return payload as unknown as JWTPayload;
   } catch (error) {
     return null;
   }
@@ -64,8 +64,10 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     }
 
     // Verify user still exists and is active
-    const user = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
-    if (!user.length || user[0].status !== 'active') {
+    const user = await db.user.findUnique({
+      where: { id: payload.userId },
+    });
+    if (!user || user.status !== 'active') {
       return res.status(401).json({ error: 'User not found or inactive' });
     }
 

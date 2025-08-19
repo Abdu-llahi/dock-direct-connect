@@ -1,11 +1,15 @@
-import { db } from './db';
-import { users, loads, bids } from '../../shared/schema';
+import db from './db';
 import { hashPassword } from './utils/auth';
 import { logger } from './utils/logger';
 
 async function seed() {
   try {
     logger.info('Starting database seeding...');
+
+    // Clear existing data
+    await db.bid.deleteMany();
+    await db.load.deleteMany();
+    await db.user.deleteMany();
 
     // Create mock users
     const mockUsers = [
@@ -17,140 +21,137 @@ async function seed() {
     const createdUsers = [];
     for (const userData of mockUsers) {
       const hashedPassword = await hashPassword(userData.password);
-      const [user] = await db.insert(users).values({
-        email: userData.email,
-        passwordHash: hashedPassword,
-        name: userData.name,
-        role: userData.role,
-        status: 'active',
-        verificationStatus: 'approved',
-        emailVerified: true,
-      }).returning();
+      const user = await db.user.create({
+        data: {
+          email: userData.email,
+          passwordHash: hashedPassword,
+          name: userData.name,
+          role: userData.role,
+          status: 'active',
+          emailVerified: true,
+        },
+      });
       createdUsers.push(user);
       logger.info(`Created user: ${user.email} (${user.role})`);
     }
 
-    // Create mock shipments
-    const mockShipments = [
+    // Create mock loads
+    const mockLoads = [
       {
         shipperId: createdUsers[0].id,
-        originAddress: 'Los Angeles, CA',
-        destinationAddress: 'New York, NY',
-        palletCount: 10,
-        weight: '5000 lbs',
-        loadType: 'dry',
-        rate: 2500.00,
+        title: 'Electronics shipment',
         description: 'Electronics shipment',
+        palletCount: 10,
+        weightLbs: 5000,
+        loadType: 'dry',
+        rateCents: 250000,
         isUrgent: true,
       },
       {
         shipperId: createdUsers[0].id,
-        originAddress: 'Chicago, IL',
-        destinationAddress: 'Miami, FL',
-        palletCount: 15,
-        weight: '7500 lbs',
-        loadType: 'refrigerated',
-        rate: 3200.00,
+        title: 'Perishable goods',
         description: 'Perishable goods',
-        isUrgent: false,
-      },
-      {
-        shipperId: createdUsers[0].id,
-        originAddress: 'Seattle, WA',
-        destinationAddress: 'Denver, CO',
-        palletCount: 8,
-        weight: '4000 lbs',
-        loadType: 'dry',
-        rate: 1800.00,
-        description: 'General freight',
-        isUrgent: false,
-      },
-      {
-        shipperId: createdUsers[0].id,
-        originAddress: 'Houston, TX',
-        destinationAddress: 'Phoenix, AZ',
-        palletCount: 12,
-        weight: '6000 lbs',
-        loadType: 'dry',
-        rate: 2200.00,
-        description: 'Industrial parts',
-        isUrgent: true,
-      },
-      {
-        shipperId: createdUsers[0].id,
-        originAddress: 'Atlanta, GA',
-        destinationAddress: 'Dallas, TX',
-        palletCount: 6,
-        weight: '3000 lbs',
+        palletCount: 15,
+        weightLbs: 7500,
         loadType: 'refrigerated',
-        rate: 1500.00,
-        description: 'Food products',
+        rateCents: 320000,
         isUrgent: false,
       },
       {
         shipperId: createdUsers[0].id,
-        originAddress: 'Boston, MA',
-        destinationAddress: 'Philadelphia, PA',
-        palletCount: 20,
-        weight: '10000 lbs',
+        title: 'General freight',
+        description: 'General freight',
+        palletCount: 8,
+        weightLbs: 4000,
         loadType: 'dry',
-        rate: 2800.00,
-        description: 'Heavy machinery',
+        rateCents: 180000,
+        isUrgent: false,
+      },
+      {
+        shipperId: createdUsers[0].id,
+        title: 'Industrial parts',
+        description: 'Industrial parts',
+        palletCount: 12,
+        weightLbs: 6000,
+        loadType: 'dry',
+        rateCents: 220000,
         isUrgent: true,
       },
       {
         shipperId: createdUsers[0].id,
-        originAddress: 'San Francisco, CA',
-        destinationAddress: 'Portland, OR',
-        palletCount: 5,
-        weight: '2500 lbs',
-        loadType: 'dry',
-        rate: 1200.00,
-        description: 'Tech equipment',
+        title: 'Food products',
+        description: 'Food products',
+        palletCount: 6,
+        weightLbs: 3000,
+        loadType: 'refrigerated',
+        rateCents: 150000,
         isUrgent: false,
       },
       {
         shipperId: createdUsers[0].id,
-        originAddress: 'Detroit, MI',
-        destinationAddress: 'Cleveland, OH',
-        palletCount: 18,
-        weight: '9000 lbs',
+        title: 'Heavy machinery',
+        description: 'Heavy machinery',
+        palletCount: 20,
+        weightLbs: 10000,
         loadType: 'dry',
-        rate: 2600.00,
+        rateCents: 280000,
+        isUrgent: true,
+      },
+      {
+        shipperId: createdUsers[0].id,
+        title: 'Tech equipment',
+        description: 'Tech equipment',
+        palletCount: 5,
+        weightLbs: 2500,
+        loadType: 'dry',
+        rateCents: 120000,
+        isUrgent: false,
+      },
+      {
+        shipperId: createdUsers[0].id,
+        title: 'Automotive parts',
         description: 'Automotive parts',
+        palletCount: 18,
+        weightLbs: 9000,
+        loadType: 'dry',
+        rateCents: 260000,
         isUrgent: false,
       },
     ];
 
-    const createdShipments = [];
-    for (const shipmentData of mockShipments) {
-      const [shipment] = await db.insert(loads).values({
-        ...shipmentData,
-        status: 'open',
-      }).returning();
-      createdShipments.push(shipment);
-      logger.info(`Created shipment: ${shipment.originAddress} → ${shipment.destinationAddress}`);
+    const createdLoads = [];
+    for (const loadData of mockLoads) {
+      const load = await db.load.create({
+        data: {
+          ...loadData,
+          status: 'open',
+        },
+      });
+      createdLoads.push(load);
+      logger.info(`Created load: ${load.title}`);
     }
 
     // Create mock bids
     const mockBids = [
-      { loadId: createdShipments[0].id, driverId: createdUsers[1].id, bidAmount: 2400.00, message: 'Available immediately' },
-      { loadId: createdShipments[0].id, driverId: createdUsers[2].id, bidAmount: 2300.00, message: 'Best rate guaranteed' },
-      { loadId: createdShipments[1].id, driverId: createdUsers[1].id, bidAmount: 3100.00, message: 'Refrigerated trailer ready' },
-      { loadId: createdShipments[2].id, driverId: createdUsers[2].id, bidAmount: 1750.00, message: 'Experienced driver' },
-      { loadId: createdShipments[3].id, driverId: createdUsers[1].id, bidAmount: 2100.00, message: 'Quick pickup available' },
+      { loadId: createdLoads[0].id, driverId: createdUsers[1].id, bidAmountCents: 240000, message: 'Available immediately' },
+      { loadId: createdLoads[0].id, driverId: createdUsers[2].id, bidAmountCents: 230000, message: 'Best rate guaranteed' },
+      { loadId: createdLoads[1].id, driverId: createdUsers[1].id, bidAmountCents: 310000, message: 'Refrigerated trailer ready' },
+      { loadId: createdLoads[2].id, driverId: createdUsers[2].id, bidAmountCents: 175000, message: 'Experienced driver' },
+      { loadId: createdLoads[3].id, driverId: createdUsers[1].id, bidAmountCents: 210000, message: 'Quick pickup available' },
     ];
 
     for (const bidData of mockBids) {
-      const [bid] = await db.insert(bids).values({
-        ...bidData,
-        status: 'pending',
-      }).returning();
-      logger.info(`Created bid: $${bid.bidAmount} on shipment ${bid.loadId}`);
+      const bid = await db.bid.create({
+        data: {
+          ...bidData,
+          status: 'pending',
+        },
+      });
+      logger.info(`Created bid: $${bid.bidAmountCents / 100} on load ${bid.loadId}`);
     }
 
     logger.info('Database seeded successfully!');
-    logger.info(`Created ${createdUsers.length} users, ${createdShipments.length} shipments, ${mockBids.length} bids`);
+    logger.info(`Created ${createdUsers.length} users, ${createdLoads.length} loads, ${mockBids.length} bids`);
     
     process.exit(0);
   } catch (error) {

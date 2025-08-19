@@ -9,8 +9,8 @@ import {
   Truck, Package, MapPin, DollarSign, Clock, Star, MessageSquare, 
   FileText, Plus, LogOut, BarChart3, TrendingUp, Users, AlertCircle, CheckCircle, Navigation
 } from "lucide-react";
-import { AnimatedCard } from "@/components/ui/animated-card";
-import { Logo } from "@/components/ui/logo";
+import AnimatedCard from "@/components/ui/animated-card";
+import Logo from "@/components/ui/logo";
 
 interface DriverDashboardProps {
   onLogout: () => void;

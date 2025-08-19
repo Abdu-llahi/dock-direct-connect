@@ -1,9 +1,7 @@
 import request from 'supertest';
 import app from './app';
-import { db } from './db';
-import { users, loads } from '../../shared/schema';
+import db from './db';
 import { hashPassword } from './utils/auth';
-import { eq } from 'drizzle-orm';
 
 describe('API Tests', () => {
   let testUser: any;
@@ -12,16 +10,16 @@ describe('API Tests', () => {
   beforeAll(async () => {
     // Create a test user
     const hashedPassword = await hashPassword('testpassword123');
-    const [user] = await db.insert(users).values({
-      email: 'test@example.com',
-      passwordHash: hashedPassword,
-      name: 'Test User',
-      role: 'shipper',
-      status: 'active',
-      verificationStatus: 'approved',
-      emailVerified: true,
-    }).returning();
-    testUser = user;
+    testUser = await db.user.create({
+              data: {
+          email: 'test@example.com',
+          passwordHash: hashedPassword,
+          name: 'Test User',
+          role: 'shipper',
+          status: 'active',
+          emailVerified: true,
+        },
+    });
 
     // Login to get auth token
     const loginResponse = await request(app)
@@ -36,8 +34,12 @@ describe('API Tests', () => {
 
   afterAll(async () => {
     // Clean up test data
-    await db.delete(loads).where(eq(loads.shipperId, testUser.id));
-    await db.delete(users).where(eq(users.id, testUser.id));
+    await db.load.deleteMany({
+      where: { shipperId: testUser.id },
+    });
+    await db.user.delete({
+      where: { id: testUser.id },
+    });
   });
 
   describe('Authentication', () => {
@@ -58,7 +60,9 @@ describe('API Tests', () => {
       expect(response.body.user.role).toBe('driver');
 
       // Clean up
-      await db.delete(users).where(eq(users.email, 'newuser@example.com'));
+      await db.user.delete({
+        where: { email: 'newuser@example.com' },
+      });
     });
 
     test('POST /api/auth/login - should login with valid credentials', async () => {
@@ -88,43 +92,43 @@ describe('API Tests', () => {
     });
   });
 
-  describe('Shipments', () => {
-    test('POST /api/shipments - should create a new shipment', async () => {
-      const shipmentData = {
+  describe('Loads', () => {
+    test('POST /api/loads - should create a new load', async () => {
+      const loadData = {
         originAddress: 'Los Angeles, CA',
         destinationAddress: 'New York, NY',
         palletCount: 10,
         weight: '5000 lbs',
         loadType: 'dry',
         rate: 2500.00,
-        description: 'Test shipment',
+        description: 'Test load',
         isUrgent: true,
       };
 
       const response = await request(app)
-        .post('/api/shipments')
+        .post('/api/loads')
         .set('Authorization', `Bearer ${authToken}`)
-        .send(shipmentData);
+        .send(loadData);
 
       expect(response.status).toBe(201);
       expect(response.body).toHaveProperty('id');
-      expect(response.body.originAddress).toBe(shipmentData.originAddress);
-      expect(response.body.destinationAddress).toBe(shipmentData.destinationAddress);
+      expect(response.body.originAddress).toBe(loadData.originAddress);
+      expect(response.body.destinationAddress).toBe(loadData.destinationAddress);
       expect(response.body.status).toBe('open');
     });
 
-    test('GET /api/shipments - should return user shipments', async () => {
+    test('GET /api/loads - should return user loads', async () => {
       const response = await request(app)
-        .get('/api/shipments')
+        .get('/api/loads')
         .set('Authorization', `Bearer ${authToken}`);
 
       expect(response.status).toBe(200);
       expect(Array.isArray(response.body)).toBe(true);
     });
 
-    test('POST /api/shipments - should require authentication', async () => {
+    test('POST /api/loads - should require authentication', async () => {
       const response = await request(app)
-        .post('/api/shipments')
+        .post('/api/loads')
         .send({
           originAddress: 'Test',
           destinationAddress: 'Test',

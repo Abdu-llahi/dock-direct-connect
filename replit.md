@@ -20,7 +20,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript for type safety
-- **Database**: PostgreSQL with Drizzle ORM for type-safe database operations
+- **Database**: PostgreSQL with Prisma ORM for type-safe database operations
 - **Authentication**: Custom JWT-based authentication with bcryptjs for password hashing
 - **API Design**: RESTful API structure with role-based access control
 - **Error Handling**: Centralized error handling middleware with structured error responses
@@ -28,9 +28,9 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage Solutions
 - **Primary Database**: PostgreSQL hosted on Neon (serverless PostgreSQL)
-- **ORM**: Drizzle with TypeScript schema definitions in shared directory
+- **ORM**: Prisma with TypeScript schema definitions in prisma directory
 - **Schema Design**: User roles (shipper/driver/admin), user profiles for additional data, verification status tracking
-- **Migrations**: Drizzle Kit for schema migrations and database management
+- **Migrations**: Prisma for schema migrations and database management
 - **Connection**: Neon serverless driver for PostgreSQL connectivity
 
 ### Authentication and Authorization
@@ -52,7 +52,7 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Dependencies
 - **@neondatabase/serverless**: Serverless PostgreSQL driver for Neon database connectivity
-- **drizzle-orm**: TypeScript ORM for database operations with full type safety
+- **@prisma/client**: TypeScript ORM for database operations with full type safety
 - **bcryptjs**: Password hashing library for secure authentication
 - **express**: Node.js web framework for API server implementation
 
@@ -67,7 +67,7 @@ Preferred communication style: Simple, everyday language.
 - **vite**: Fast build tool with HMR for development workflow
 - **tsx**: TypeScript execution for Node.js development server
 - **@types/***: TypeScript definitions for enhanced development experience
-- **drizzle-kit**: CLI tools for database schema management and migrations
+- **prisma**: CLI tools for database schema management and migrations
 
 ### UI and Enhancement Libraries
 - **sonner**: Toast notifications for user feedback

@@ -1,14 +1,15 @@
 
 import { useState, lazy, Suspense } from "react";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Play, Package, TrendingUp, FileText, Shield } from "lucide-react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import Logo from "@/components/ui/logo";
 import Footer from "@/components/Footer";
+import AnimatedCard from "@/components/ui/animated-card";
 
-import ShipperDashboard from "@/components/ShipperDashboard";
-import DriverDashboard from "@/components/DriverDashboard";
+import ShipperDashboard from "@/pages/ShipperDashboard";
+import DriverDashboard from "@/pages/DriverDashboard";
 
 const AdminDashboard = lazy(() => import("@/components/AdminDashboard"));
 

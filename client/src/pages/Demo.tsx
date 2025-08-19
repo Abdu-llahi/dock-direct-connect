@@ -17,8 +17,8 @@ import {
   FileText, CheckCircle, ArrowRight, X, Plus, Users, TrendingUp,
   Map, Navigation, Calendar, AlertCircle
 } from "lucide-react";
-import { AnimatedCard } from "@/components/ui/animated-card";
-import { Logo } from "@/components/ui/logo";
+import AnimatedCard from "@/components/ui/animated-card";
+import Logo from "@/components/ui/logo";
 
 interface Shipment {
   id: string;

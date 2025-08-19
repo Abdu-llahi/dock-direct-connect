@@ -411,7 +411,7 @@ export function registerRoutes(app: Express) {
         return res.status(403).json({ error: 'Access denied' });
       }
 
-      if (userRole === 'driver' && userRole !== 'admin') {
+      if (userRole === 'driver') {
         return res.status(403).json({ error: 'Access denied' });
       }
 

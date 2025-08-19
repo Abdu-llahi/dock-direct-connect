@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import Demo from "./pages/Demo";
 import ShipperDashboard from "./pages/ShipperDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
+import { useAuth } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
 
@@ -36,8 +37,8 @@ const App = () => (
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/admin-panel" element={<AdminPanel />} />
-            <Route path="/dashboard/shipper" element={<ShipperDashboard />} />
-            <Route path="/dashboard/driver" element={<DriverDashboard />} />
+            <Route path="/dashboard/shipper" element={<ShipperDashboardWrapper />} />
+            <Route path="/dashboard/driver" element={<DriverDashboardWrapper />} />
             <Route path="/dashboard/admin" element={<AdminDashboard />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
@@ -49,5 +50,15 @@ const App = () => (
     </AuthProvider>
   </QueryClientProvider>
 );
+
+const ShipperDashboardWrapper = () => {
+  const { signOut } = useAuth();
+  return <ShipperDashboard onLogout={signOut} />;
+};
+
+const DriverDashboardWrapper = () => {
+  const { signOut } = useAuth();
+  return <DriverDashboard onLogout={signOut} />;
+};
 
 export default App;
