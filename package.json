@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx server/src/app.ts",
+    "dev:frontend": "vite",
+    "dev:backend": "cross-env NODE_ENV=development tsx server/src/app.ts",
     "build": "vite build && esbuild server/src/app.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "cross-env NODE_ENV=production node dist/app.js",
     "check": "tsc",
